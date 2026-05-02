@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
 import { cn, generateId, getTodayDate } from "../lib/utils";
 
-// ── SOUND FX ──────────────────────────────────────────────────────────
+//  SOUND FX 
 function playSound(type: "check" | "complete" | "streak") {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -17,7 +17,7 @@ function playSound(type: "check" | "complete" | "streak") {
     g.connect(ctx.destination);
 
     if (type === "check") {
-      // Soft tick — task checked
+      // Soft tick  task checked
       const o = ctx.createOscillator();
       o.connect(g);
       o.frequency.setValueAtTime(880, ctx.currentTime);
@@ -27,7 +27,7 @@ function playSound(type: "check" | "complete" | "streak") {
       o.start(); o.stop(ctx.currentTime + 0.15);
 
     } else if (type === "complete") {
-      // Victory chord — all tasks done
+      // Victory chord  all tasks done
       [523, 659, 784, 1047].forEach((freq, i) => {
         const o = ctx.createOscillator();
         const gn = ctx.createGain();
@@ -42,7 +42,7 @@ function playSound(type: "check" | "complete" | "streak") {
       });
 
     } else if (type === "streak") {
-      // Streak sound — ascending arpeggio
+      // Streak sound  ascending arpeggio
       [440, 554, 659, 880].forEach((freq, i) => {
         const o = ctx.createOscillator();
         const gn = ctx.createGain();
@@ -58,7 +58,7 @@ function playSound(type: "check" | "complete" | "streak") {
   } catch {}
 }
 
-// ── STREAK CALCULATOR ─────────────────────────────────────────────────
+//  STREAK CALCULATOR 
 function calcStreak(tasks: any[]): number {
   let streak = 0;
   const today = new Date();
@@ -93,20 +93,20 @@ export const Tasks: React.FC = () => {
     const persona = data.settings.ai.identity.persona;
     const name = data.settings.ai.identity.name;
     const msgs: Record<string, string[]> = {
-      Coach:    ["First one down! Now keep that momentum!", "70%! You're building real discipline.", "80%! This is what champions look like.", "90%! One final push — don't stop!", "100%! PERFECT execution. I'm proud of you."],
-      Teacher:  ["Good start! Learning begins with action.", "70% done — your consistency is showing.", "80%! Almost there, stay focused.", "90% — you're so close, keep going!", "100%! Full marks today. Well done."],
-      Trainer:  ["Rep one down! Keep the pace.", "70%! Feel the burn — don't quit.", "80%! Beast mode activated.", "90%! Last few reps — give everything!", "100%! You crushed it today. Respect."],
-      Partner:  ["Solid start.", "70% done. On track.", "80%! Efficient as always.", "90% — finish line is right there.", "100%! Mission complete. You delivered."],
+      Coach:    ["First one down! Now keep that momentum!", "70%! You're building real discipline.", "80%! This is what champions look like.", "90%! One final push  don't stop!", "100%! PERFECT execution. I'm proud of you."],
+      Teacher:  ["Good start! Learning begins with action.", "70% done  your consistency is showing.", "80%! Almost there, stay focused.", "90%  you're so close, keep going!", "100%! Full marks today. Well done."],
+      Trainer:  ["Rep one down! Keep the pace.", "70%! Feel the burn  don't quit.", "80%! Beast mode activated.", "90%! Last few reps  give everything!", "100%! You crushed it today. Respect."],
+      Partner:  ["Solid start.", "70% done. On track.", "80%! Efficient as always.", "90%  finish line is right there.", "100%! Mission complete. You delivered."],
       Friend:   ["Nice one! Let's keep it going!", "70%? Not bad at all homie!", "80% done, you're on fire!", "90%! Almost there!", "100%! You absolute legend!"],
-      Wife:     ["That's my love! Keep going!", "Doing amazing honey, almost there!", "So proud of you! Nearly done!", "Just a little more sweetheart!", "You did it! I love you so much! 🥰"],
-      Girlfriend: ["Yay! You started! Keep going babe!", "70% done, you're doing amazing!", "80%! I knew you could do it!", "Almost there! You got this babe!", "100%! You're literally the best! 💕"],
+      Wife:     ["That's my love! Keep going!", "Doing amazing honey, almost there!", "So proud of you! Nearly done!", "Just a little more sweetheart!", "You did it! I love you so much! "],
+      Girlfriend: ["Yay! You started! Keep going babe!", "70% done, you're doing amazing!", "80%! I knew you could do it!", "Almost there! You got this babe!", "100%! You're literally the best! "],
     };
     const set = msgs[persona] || msgs["Friend"];
-    if (isFirst) return { msg: `${name}: ${set[0]}`, icon: "🎯" };
-    if (p >= 100) return { msg: `${name}: ${set[4]}`, icon: "🏆" };
-    if (p >= 90) return { msg: `${name}: ${set[3]}`, icon: "⚡" };
-    if (p >= 80) return { msg: `${name}: ${set[2]}`, icon: "🔥" };
-    if (p >= 70) return { msg: `${name}: ${set[1]}`, icon: "💪" };
+    if (isFirst) return { msg: `${name}: ${set[0]}`, icon: "" };
+    if (p >= 100) return { msg: `${name}: ${set[4]}`, icon: "" };
+    if (p >= 90) return { msg: `${name}: ${set[3]}`, icon: "" };
+    if (p >= 80) return { msg: `${name}: ${set[2]}`, icon: "" };
+    if (p >= 70) return { msg: `${name}: ${set[1]}`, icon: "" };
     return null;
   };
 
@@ -147,7 +147,7 @@ export const Tasks: React.FC = () => {
         prevStreakRef.current = newStreak;
       }
 
-      // Add to practice queue — show prompt
+      // Add to practice queue  show prompt
       const alreadyInQueue = data.practiceQueue.includes(id);
       if (!alreadyInQueue) {
         setShowPracticePrompt({ taskId: id, taskText: task.text });
@@ -205,7 +205,7 @@ export const Tasks: React.FC = () => {
           className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-[2rem] p-5 flex items-center gap-4 text-white shadow-lg shadow-orange-500/20">
           <Flame className="w-8 h-8 animate-pulse" />
           <div>
-            <div className="font-black text-xl">{currentStreak} Day Streak! 🔥</div>
+            <div className="font-black text-xl">{currentStreak} Day Streak! </div>
             <div className="text-xs font-bold opacity-75 uppercase tracking-widest">
               {currentStreak >= 7 ? "Legendary consistency" : currentStreak >= 3 ? "Building momentum" : "You're on a roll"}
             </div>
@@ -288,7 +288,7 @@ export const Tasks: React.FC = () => {
         {isOffDay ? (
           <div className="text-center py-16 bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
             <Coffee className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-            <h4 className="text-xl font-black text-gray-700">Rest Day — Recharge</h4>
+            <h4 className="text-xl font-black text-gray-700">Rest Day  Recharge</h4>
             <p className="text-gray-400 font-bold mt-2 max-w-xs mx-auto">Tasks are paused. Focus on recovery.</p>
           </div>
         ) : (
@@ -365,7 +365,7 @@ export const Tasks: React.FC = () => {
                   {data.settings.ai.identity.name} says
                 </p>
                 <p className="text-white font-bold text-sm leading-relaxed">
-                  You completed <span className="text-amber-400">"{showPracticePrompt.taskText}"</span> — want me to test you on it?
+                  You completed <span className="text-amber-400">"{showPracticePrompt.taskText}"</span>  want me to test you on it?
                 </p>
                 <div className="flex gap-2 mt-4">
                   <button onClick={() => addToPractice(showPracticePrompt.taskId)}

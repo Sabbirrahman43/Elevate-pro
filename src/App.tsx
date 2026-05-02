@@ -50,7 +50,7 @@ const ViewContainer: React.FC = () => {
           </div>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
           <p className="text-blue-400 font-black text-xs uppercase tracking-widest">
-            Loading your workspace…
+            Loading your workspace
           </p>
         </div>
       </div>

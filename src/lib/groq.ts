@@ -1,22 +1,22 @@
 import { ChatMessage, WorkspaceData } from "../types";
 
-// ── VERIFIED LIVE GROQ MODELS (April 2026) ────────────────────────────
-// All production models — confirmed active on console.groq.com/docs/models
+//  VERIFIED LIVE GROQ MODELS (April 2026) 
+// All production models  confirmed active on console.groq.com/docs/models
 export const GROQ_MODELS = [
-  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",   desc: "Best quality · Free",       speed: "Fast"    },
-  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",    desc: "Fastest · Instant reply",   speed: "Instant" },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",   desc: "Latest Meta · Vision",      speed: "Fast"    },
-  { id: "openai/gpt-oss-120b",                       name: "GPT OSS 120B",    desc: "Most powerful · Reasoning", speed: "Fast"    },
-  { id: "openai/gpt-oss-20b",                        name: "GPT OSS 20B",     desc: "Fast reasoning · Smart",    speed: "Instant" },
-  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",      desc: "Reasoning · Multilingual",  speed: "Fast"    },
+  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",   desc: "Best quality  Free",       speed: "Fast"    },
+  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",    desc: "Fastest  Instant reply",   speed: "Instant" },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",   desc: "Latest Meta  Vision",      speed: "Fast"    },
+  { id: "openai/gpt-oss-120b",                       name: "GPT OSS 120B",    desc: "Most powerful  Reasoning", speed: "Fast"    },
+  { id: "openai/gpt-oss-20b",                        name: "GPT OSS 20B",     desc: "Fast reasoning  Smart",    speed: "Instant" },
+  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",      desc: "Reasoning  Multilingual",  speed: "Fast"    },
 ];
 
-// Groq TTS — Orpheus (real human-quality voice, works everywhere)
+// Groq TTS  Orpheus (real human-quality voice, works everywhere)
 export const GROQ_TTS_MODEL = "canopylabs/orpheus-v1-english";
-// Groq STT — Whisper Turbo (faster than browser speech recognition)
+// Groq STT  Whisper Turbo (faster than browser speech recognition)
 export const GROQ_STT_MODEL = "whisper-large-v3-turbo";
 
-// ── GROQ TTS — real voice, no robotic browser sound ──────────────────
+//  GROQ TTS  real voice, no robotic browser sound 
 export async function groqTTS(text: string, apiKey: string): Promise<ArrayBuffer | null> {
   const clean = text.replace(/[#*`_~[\]()>{}]/g, "").replace(/\n+/g, " ").substring(0, 500);
   try {
@@ -65,7 +65,7 @@ export async function playAudioBuffer(buffer: ArrayBuffer): Promise<void> {
   });
 }
 
-// ── SPEAK: Groq TTS first (real voice), browser fallback ─────────────
+//  SPEAK: Groq TTS first (real voice), browser fallback 
 export async function speakText(
   text: string,
   data: WorkspaceData,
@@ -96,7 +96,7 @@ export async function speakText(
     } catch {}
   }
 
-  // 3. Browser speech — instant fallback
+  // 3. Browser speech  instant fallback
   return speakBrowser(clean, data.settings.ai.voice.selected, onStop);
 }
 
@@ -123,7 +123,7 @@ export function speakBrowser(text: string, voiceName?: string, onStop?: () => vo
   return () => window.speechSynthesis.cancel();
 }
 
-// ── CHAT WITH GROQ ────────────────────────────────────────────────────
+//  CHAT WITH GROQ 
 export async function chatWithGroq(
   messages: ChatMessage[],
   data: WorkspaceData,
@@ -131,7 +131,7 @@ export async function chatWithGroq(
   onTaskAction?: (action: any) => void
 ): Promise<{ text: string }> {
   const apiKey = data.settings.groqKey;
-  if (!apiKey) throw new Error("No Groq API key. Get a free key at console.groq.com → Add it in Settings → Integrations.");
+  if (!apiKey) throw new Error("No Groq API key. Get a free key at console.groq.com  Add it in Settings  Integrations.");
 
   const persona = data.settings.ai.identity;
   const profile = data.settings.profile;
@@ -172,7 +172,7 @@ For task actions, append a JSON block on a new line:
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     const msg = err?.error?.message || response.statusText;
-    if (response.status === 401) throw new Error("Invalid Groq API key. Check Settings → Integrations.");
+    if (response.status === 401) throw new Error("Invalid Groq API key. Check Settings  Integrations.");
     if (response.status === 429) throw new Error("Groq rate limit. Wait a moment and try again.");
     if (msg?.includes("decommissioned")) throw new Error(`Model ${modelId} was removed by Groq. Please select a different model.`);
     throw new Error(`Groq error: ${msg}`);

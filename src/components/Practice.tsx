@@ -11,7 +11,7 @@ import { chatWithGroq, speakText, stopSpeech } from "../lib/groq";
 import { ChatMessage, Task } from "../types";
 import { cn } from "../lib/utils";
 
-// All working models — same as AIIntelligence
+// All working models  same as AIIntelligence
 const MODELS = [
   { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",  type: "groq" },
   { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",  type: "groq" },
@@ -39,7 +39,7 @@ export const Practice: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ── Build persona-aware system prompt ─────────────────────────────
+  //  Build persona-aware system prompt 
   const buildExaminerPrompt = (task: Task) => {
     const persona = data.settings.ai.identity;
     const profile = data.settings.profile;
@@ -58,12 +58,12 @@ YOUR JOB:
    TOTAL_SCORE: [score]/[total]
    MASTERED: ${task.id}
 
-STAY IN CHARACTER as ${persona.name} throughout — ${persona.behavior}
+STAY IN CHARACTER as ${persona.name} throughout  ${persona.behavior}
 NEVER break character. Be ${persona.persona}-like in your feedback style.
 User goals: ${profile.goals || "grow and improve"}.`;
   };
 
-  // ── Call correct AI based on model type ────────────────────────────
+  //  Call correct AI based on model type 
   const callAI = async (msgs: ChatMessage[], task: Task): Promise<string> => {
     const systemMsg: ChatMessage = {
       id: "system",
@@ -78,7 +78,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
       const result = await chatWithGemini(fullMsgs, data, selectedModel.id);
       return result.text;
     } else {
-      if (!data.settings.groqKey) throw new Error("No Groq key. Get free key at console.groq.com → add in Settings.");
+      if (!data.settings.groqKey) throw new Error("No Groq key. Get free key at console.groq.com  add in Settings.");
       // For Groq, build proper messages with system prompt
       const apiKey = data.settings.groqKey;
       const body: any = {
@@ -107,7 +107,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
     }
   };
 
-  // ── Start exam ────────────────────────────────────────────────────
+  //  Start exam 
   const startTest = async (task: Task) => {
     setActiveTask(task);
     setMessages([]);
@@ -130,7 +130,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
       setMessages([kickoff, aiMsg]);
       autoSpeak(aiMsg.id, responseText);
     } catch (err: any) {
-      const fallback = `I'm ${data.settings.ai.identity.name}, your ${data.settings.ai.identity.persona}. Let's evaluate "${task.text}". Tell me — what was the most important thing you learned?`;
+      const fallback = `I'm ${data.settings.ai.identity.name}, your ${data.settings.ai.identity.persona}. Let's evaluate "${task.text}". Tell me  what was the most important thing you learned?`;
       const msg: ChatMessage = { id: "init-fallback", role: "assistant", content: fallback, timestamp: Date.now() };
       setMessages([msg]);
     } finally {
@@ -138,7 +138,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
     }
   };
 
-  // ── Send answer ───────────────────────────────────────────────────
+  //  Send answer 
   const handleSend = async () => {
     if ((!input.trim() && !image) || !activeTask || loading) return;
     const userMsg: ChatMessage = {
@@ -192,7 +192,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: "assistant",
-        content: `⚠ ${err.message}`,
+        content: ` ${err.message}`,
         timestamp: Date.now(),
       }]);
     } finally {
@@ -200,7 +200,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
     }
   };
 
-  // ── Voice: auto-speak new AI messages ─────────────────────────────
+  //  Voice: auto-speak new AI messages 
   const autoSpeak = async (msgId: string, text: string) => {
     stopFnRef.current?.();
     stopSpeech();
@@ -230,7 +230,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Practice Core</h1>
             <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">
-              Examiner: {data.settings.ai.identity.name} · {data.settings.ai.identity.persona}
+              Examiner: {data.settings.ai.identity.name}  {data.settings.ai.identity.persona}
             </p>
           </div>
         </div>
@@ -287,7 +287,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
               </p>
               {!data.settings.groqKey && !data.settings.geminiKey && (
                 <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-800">
-                  ⚠ Add a Groq (free) or Gemini API key in Settings to enable AI examination
+                   Add a Groq (free) or Gemini API key in Settings to enable AI examination
                 </div>
               )}
             </div>
@@ -302,7 +302,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
                   <div>
                     <p className="font-black text-sm text-slate-900 truncate max-w-xs">{activeTask.text}</p>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      {data.settings.ai.identity.name} · {selectedModel.name}
+                      {data.settings.ai.identity.name}  {selectedModel.name}
                     </p>
                   </div>
                 </div>
@@ -340,7 +340,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
                     <div className="bg-slate-50 px-5 py-4 rounded-3xl rounded-tl-sm border border-slate-200 flex items-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        {data.settings.ai.identity.name} is thinking…
+                        {data.settings.ai.identity.name} is thinking
                       </span>
                     </div>
                   </div>
@@ -371,7 +371,7 @@ User goals: ${profile.goals || "grow and improve"}.`;
                   </button>
                   <input value={input} onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
-                    placeholder={`Answer ${data.settings.ai.identity.name}…`}
+                    placeholder={`Answer ${data.settings.ai.identity.name}`}
                     className="flex-1 bg-transparent py-3 outline-none font-semibold text-sm" />
                   <button onClick={handleSend} disabled={(!input.trim() && !image) || loading}
                     className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-black transition-all disabled:opacity-40 shrink-0">

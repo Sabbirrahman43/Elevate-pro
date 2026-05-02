@@ -64,7 +64,7 @@ export interface WorkspaceData {
   offDays: string[];
   settings: {
     geminiKey: string;
-    groqKey: string;           // ← NEW: Groq API key (free)
+    groqKey: string;           //  NEW: Groq API key (free)
     profile: UserProfile;
     ai: AISettings;
     selectedModelId: string;

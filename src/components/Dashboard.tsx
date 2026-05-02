@@ -9,7 +9,7 @@ import { BarChart, Bar, XAxis, ResponsiveContainer, Cell, Tooltip } from "rechar
 import { cn, getTodayDate } from "../lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 
-// ── LIVE CLOCK ────────────────────────────────────────────────────────
+//  LIVE CLOCK 
 const LiveClock: React.FC<{ dark?: boolean }> = ({ dark = true }) => {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
@@ -27,9 +27,9 @@ const LiveClock: React.FC<{ dark?: boolean }> = ({ dark = true }) => {
   );
 };
 
-// ──────────────────────────────────────────────────────────────────────
+// 
 // DASHBOARD 1: GLASS COMMAND CENTER (original, dark)
-// ──────────────────────────────────────────────────────────────────────
+// 
 const DashboardGlass: React.FC<{ data: any; updateData: any }> = ({ data, updateData }) => {
   const today = getTodayDate();
   const dayTasks = data.tasks.filter((t: any) => t.date === today);
@@ -84,7 +84,7 @@ const DashboardGlass: React.FC<{ data: any; updateData: any }> = ({ data, update
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-500 rounded-2xl"><Signal className="w-5 h-5 text-white" /></div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
-                  Add your Gemini or Groq API key in Settings → Integrations to unlock AI features.
+                  Add your Gemini or Groq API key in Settings  Integrations to unlock AI features.
                 </p>
               </div>
               <button onClick={() => updateData({ hasDismissedBulletin: true })} className="px-5 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl whitespace-nowrap">
@@ -168,9 +168,9 @@ const DashboardGlass: React.FC<{ data: any; updateData: any }> = ({ data, update
   );
 };
 
-// ──────────────────────────────────────────────────────────────────────
+// 
 // DASHBOARD 2: SPORT ENERGY (white, bold, score-based)
-// ──────────────────────────────────────────────────────────────────────
+// 
 const DashboardSport: React.FC<{ data: any; updateData: any }> = ({ data, updateData }) => {
   const today = getTodayDate();
   const dayTasks = data.tasks.filter((t: any) => t.date === today);
@@ -195,7 +195,7 @@ const DashboardSport: React.FC<{ data: any; updateData: any }> = ({ data, update
           <div className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">
             {new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">{getGreeting()}, {name} 👋</h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">{getGreeting()}, {name} </h1>
         </div>
         <LiveClock dark={false} />
       </div>
@@ -204,7 +204,7 @@ const DashboardSport: React.FC<{ data: any; updateData: any }> = ({ data, update
       <AnimatePresence>
         {!data.hasDismissedBulletin && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between gap-4">
-            <p className="text-xs font-bold text-blue-800">Add your API key in Settings → Integrations to unlock AI features.</p>
+            <p className="text-xs font-bold text-blue-800">Add your API key in Settings  Integrations to unlock AI features.</p>
             <button onClick={() => updateData({ hasDismissedBulletin: true })} className="text-[10px] font-black text-blue-600 uppercase tracking-widest whitespace-nowrap">Dismiss</button>
           </motion.div>
         )}
@@ -237,7 +237,7 @@ const DashboardSport: React.FC<{ data: any; updateData: any }> = ({ data, update
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
           <div className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Today's Tasks</div>
           <div className="space-y-1">
-            {dayTasks.length === 0 && <p className="text-sm text-slate-400 font-medium">No tasks today — add some!</p>}
+            {dayTasks.length === 0 && <p className="text-sm text-slate-400 font-medium">No tasks today  add some!</p>}
             {dayTasks.slice(0, 6).map((t: any) => (
               <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
                 {t.completed
@@ -246,7 +246,7 @@ const DashboardSport: React.FC<{ data: any; updateData: any }> = ({ data, update
                 <span className={cn("text-sm font-semibold", t.completed ? "line-through text-slate-400" : "text-slate-800")}>{t.text}</span>
               </div>
             ))}
-            {dayTasks.length > 6 && <div className="text-xs font-bold text-slate-400 pl-3">+{dayTasks.length - 6} more…</div>}
+            {dayTasks.length > 6 && <div className="text-xs font-bold text-slate-400 pl-3">+{dayTasks.length - 6} more</div>}
           </div>
         </div>
 
@@ -275,7 +275,7 @@ const DashboardSport: React.FC<{ data: any; updateData: any }> = ({ data, update
             <div className="flex-1 min-w-0">
               <div className="font-black text-slate-900 text-sm">{aiName}</div>
               <div className="text-xs text-slate-500 font-medium mt-0.5 truncate">
-                {progress >= 80 ? "Amazing work today! 🔥" : progress >= 50 ? "You're halfway there! Keep going!" : "Let's get those tasks done!"}
+                {progress >= 80 ? "Amazing work today! " : progress >= 50 ? "You're halfway there! Keep going!" : "Let's get those tasks done!"}
               </div>
             </div>
           </div>
@@ -285,9 +285,9 @@ const DashboardSport: React.FC<{ data: any; updateData: any }> = ({ data, update
   );
 };
 
-// ──────────────────────────────────────────────────────────────────────
+// 
 // DASHBOARD 3: MINIMAL ZEN (cream, typography-focused)
-// ──────────────────────────────────────────────────────────────────────
+// 
 const DashboardZen: React.FC<{ data: any; updateData: any }> = ({ data, updateData }) => {
   const today = getTodayDate();
   const dayTasks = data.tasks.filter((t: any) => t.date === today);
@@ -327,7 +327,7 @@ const DashboardZen: React.FC<{ data: any; updateData: any }> = ({ data, updateDa
       <AnimatePresence>
         {!data.hasDismissedBulletin && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mb-7 p-5 bg-stone-100 border border-stone-200 rounded-2xl flex items-center justify-between gap-4">
-            <p className="text-xs font-bold text-stone-600">Add your API key in Settings → Integrations to unlock AI.</p>
+            <p className="text-xs font-bold text-stone-600">Add your API key in Settings  Integrations to unlock AI.</p>
             <button onClick={() => updateData({ hasDismissedBulletin: true })} className="text-[10px] font-black text-stone-500 uppercase tracking-widest whitespace-nowrap">Dismiss</button>
           </motion.div>
         )}
@@ -386,7 +386,7 @@ const DashboardZen: React.FC<{ data: any; updateData: any }> = ({ data, updateDa
             {aiName.charAt(0)}
           </div>
           <div>
-            <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">{aiName} · Your AI</div>
+            <div className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">{aiName}  Your AI</div>
             <div className="text-sm font-semibold text-white/70 leading-relaxed">
               {progress >= 80 ? `Great work! You've completed ${progress}% of your goals.` : `You have ${dayTasks.length - tasksDone} tasks left. Want help planning the rest of your day?`}
             </div>
@@ -397,9 +397,9 @@ const DashboardZen: React.FC<{ data: any; updateData: any }> = ({ data, updateDa
   );
 };
 
-// ──────────────────────────────────────────────────────────────────────
-// MAIN DASHBOARD — reads theme from settings
-// ──────────────────────────────────────────────────────────────────────
+// 
+// MAIN DASHBOARD  reads theme from settings
+// 
 export const Dashboard: React.FC = () => {
   const { data, updateData } = useStore();
   const theme = (data.settings as any).dashboardTheme || "glass";

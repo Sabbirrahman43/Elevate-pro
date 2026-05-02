@@ -1,14 +1,14 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { ChatMessage, WorkspaceData } from "../types";
 
-// ── VERIFIED LIVE MODEL IDs (April 2026) ──────────────────────────────
-// gemini-2.5-flash        → stable, fast, free tier friendly ✅
-// gemini-2.5-flash-lite   → stable GA, cheapest ✅
-// gemini-2.5-pro          → stable, most capable ✅
-// gemini-2.5-flash-preview-tts → TTS only ✅
-// NOTE: gemini-2.5-flash-lite-preview-06-17 is DEAD → use gemini-2.5-flash-lite
+//  VERIFIED LIVE MODEL IDs (April 2026) 
+// gemini-2.5-flash         stable, fast, free tier friendly 
+// gemini-2.5-flash-lite    stable GA, cheapest 
+// gemini-2.5-pro           stable, most capable 
+// gemini-2.5-flash-preview-tts  TTS only 
+// NOTE: gemini-2.5-flash-lite-preview-06-17 is DEAD  use gemini-2.5-flash-lite
 
-// ── SINGLETON AUDIO (one audio at a time, stoppable) ─────────────────
+//  SINGLETON AUDIO (one audio at a time, stoppable) 
 let _audioCtx: AudioContext | null = null;
 let _audioSource: AudioBufferSourceNode | null = null;
 let _isPlaying = false;
@@ -50,7 +50,7 @@ export async function playBase64PCM(base64: string): Promise<void> {
   }
 }
 
-// ── TTS ────────────────────────────────────────────────────────────────
+//  TTS 
 export async function generateSpeech(text: string, data: WorkspaceData): Promise<string | null> {
   const apiKey = data.settings.geminiKey;
   if (!apiKey) return null;
@@ -73,7 +73,7 @@ export async function generateSpeech(text: string, data: WorkspaceData): Promise
   }
 }
 
-// ── CHAT ───────────────────────────────────────────────────────────────
+//  CHAT 
 export async function chatWithGemini(
   messages: ChatMessage[],
   data: WorkspaceData,
@@ -83,7 +83,7 @@ export async function chatWithGemini(
   imageData?: { base64: string; mimeType: string }
 ) {
   const apiKey = data.settings.geminiKey;
-  if (!apiKey) throw new Error("No Gemini API key — go to Settings → Integrations and add your key.");
+  if (!apiKey) throw new Error("No Gemini API key  go to Settings  Integrations and add your key.");
 
   const ai = new GoogleGenAI({ apiKey });
   const persona = data.settings.ai.identity;
@@ -92,11 +92,11 @@ export async function chatWithGemini(
   const finishedCount = data.tasks.filter(t => t.completed).length;
   const habitList = data.habits.map(h => `- ${h.name}`).join("\n") || "None";
 
-  // ── REAL MODEL IDs only ─────────────────────────────────────────────
+  //  REAL MODEL IDs only 
   const MODELS: Record<string, string> = {
-    "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",   // GA stable ✅
-    "gemini-2.5-flash":      "gemini-2.5-flash",          // GA stable ✅
-    "gemini-2.5-pro":        "gemini-2.5-pro",            // GA stable ✅
+    "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",   // GA stable 
+    "gemini-2.5-flash":      "gemini-2.5-flash",          // GA stable 
+    "gemini-2.5-pro":        "gemini-2.5-pro",            // GA stable 
   };
   const resolvedModel = MODELS[modelName] ?? "gemini-2.5-flash";
 
@@ -154,7 +154,7 @@ RULES: Never say you are an AI. Be the persona fully. Speak naturally. Address u
     };
   } catch (error: any) {
     const msg = error?.message || "";
-    // Quota hit → fall back to flash (not lite, not pro)
+    // Quota hit  fall back to flash (not lite, not pro)
     if ((msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED")) && resolvedModel !== "gemini-2.5-flash") {
       const r2 = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -170,7 +170,7 @@ RULES: Never say you are an AI. Be the persona fully. Speak naturally. Address u
       throw new Error(`Model "${resolvedModel}" not available. Try Gemini Flash instead.`);
     }
     if (msg.includes("API_KEY_INVALID") || msg.includes("401")) {
-      throw new Error("Invalid API key. Check Settings → Integrations.");
+      throw new Error("Invalid API key. Check Settings  Integrations.");
     }
     if (msg.includes("429") || msg.includes("quota")) {
       throw new Error("Rate limit reached. Wait a moment and try again, or switch to a different model.");
@@ -179,7 +179,7 @@ RULES: Never say you are an AI. Be the persona fully. Speak naturally. Address u
   }
 }
 
-// ── IMAGE GEN ──────────────────────────────────────────────────────────
+//  IMAGE GEN 
 export async function generateImageGemini(prompt: string, data: WorkspaceData): Promise<string | null> {
   const apiKey = data.settings.geminiKey;
   if (!apiKey) throw new Error("No Gemini API key.");

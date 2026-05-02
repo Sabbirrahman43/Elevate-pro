@@ -1,6 +1,6 @@
 import { ChatMessage, WorkspaceData } from "../types";
 
-// ── OLLAMA CONNECTION CHECKER ─────────────────────────────────────────
+//  OLLAMA CONNECTION CHECKER 
 // Returns true if Ollama is reachable, false otherwise
 export async function checkOllamaConnection(url: string): Promise<{ ok: boolean; models: string[]; error?: string }> {
   try {
@@ -14,7 +14,7 @@ export async function checkOllamaConnection(url: string): Promise<{ ok: boolean;
     return { ok: true, models };
   } catch (err: any) {
     if (err.name === "AbortError" || err.name === "TimeoutError") {
-      return { ok: false, models: [], error: "Connection timeout — is Ollama running?" };
+      return { ok: false, models: [], error: "Connection timeout  is Ollama running?" };
     }
     if (err.message?.includes("Failed to fetch") || err.message?.includes("NetworkError")) {
       return { ok: false, models: [], error: "Cannot reach Ollama. Check CORS settings (see below)." };
@@ -23,7 +23,7 @@ export async function checkOllamaConnection(url: string): Promise<{ ok: boolean;
   }
 }
 
-// ── CHAT WITH OLLAMA ──────────────────────────────────────────────────
+//  CHAT WITH OLLAMA 
 export async function chatWithOllama(
   messages: ChatMessage[],
   data: WorkspaceData,

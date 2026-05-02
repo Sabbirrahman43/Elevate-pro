@@ -354,18 +354,18 @@ export const Settings: React.FC = () => {
               <div className="space-y-4 pt-2">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                    <span className="text-indigo-600 font-black text-sm">⊞</span>
+                    <span className="text-indigo-600 font-black text-sm"></span>
                   </div>
                   <div>
                     <h3 className="text-xl font-black text-gray-900">Dashboard Style</h3>
-                    <p className="text-xs text-gray-400 font-bold">Pick your vibe — switch anytime</p>
+                    <p className="text-xs text-gray-400 font-bold">Pick your vibe  switch anytime</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   {([
-                    { id: "glass", label: "Glass Command", desc: "Dark · Futuristic · Cyber", preview: "bg-slate-900", accent: "bg-blue-500" },
-                    { id: "sport", label: "Sport Energy",  desc: "White · Bold · Score-based", preview: "bg-white border border-slate-200", accent: "bg-blue-600" },
-                    { id: "zen",   label: "Minimal Zen",   desc: "Cream · Clean · Typography", preview: "bg-stone-100", accent: "bg-stone-900" },
+                    { id: "glass", label: "Glass Command", desc: "Dark  Futuristic  Cyber", preview: "bg-slate-900", accent: "bg-blue-500" },
+                    { id: "sport", label: "Sport Energy",  desc: "White  Bold  Score-based", preview: "bg-white border border-slate-200", accent: "bg-blue-600" },
+                    { id: "zen",   label: "Minimal Zen",   desc: "Cream  Clean  Typography", preview: "bg-stone-100", accent: "bg-stone-900" },
                   ] as const).map(theme => {
                     const active = ((data.settings as any).dashboardTheme || "glass") === theme.id;
                     return (
@@ -375,7 +375,7 @@ export const Settings: React.FC = () => {
                         className={`relative p-5 rounded-[2rem] border-2 text-left transition-all ${active ? "border-blue-500 shadow-lg shadow-blue-500/20" : "border-gray-100 hover:border-gray-300"}`}
                       >
                         {active && (
-                          <div className="absolute top-3 right-3 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-black">✓</div>
+                          <div className="absolute top-3 right-3 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-black"></div>
                         )}
                         <div className={`w-full h-14 ${theme.preview} rounded-2xl mb-4 overflow-hidden flex items-end gap-1 p-2`}>
                           <div className={`w-3 h-8 ${theme.accent} rounded-sm opacity-80`} />
@@ -393,7 +393,7 @@ export const Settings: React.FC = () => {
 
               <hr className="border-gray-100" />
 
-                            {/* Groq — free, works on Vercel & everywhere */}
+                            {/* Groq  free, works on Vercel & everywhere */}
               <div className="space-y-4 pt-2">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
@@ -401,18 +401,18 @@ export const Settings: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-xl font-black text-gray-900">Groq API Key</h3>
-                    <p className="text-xs text-gray-400 font-bold">Free · Works on Vercel, Windows app, everywhere</p>
+                    <p className="text-xs text-gray-400 font-bold">Free  Works on Vercel, Windows app, everywhere</p>
                   </div>
                   <a href="https://console.groq.com" target="_blank" rel="noreferrer"
                     className="ml-auto px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl transition-all">
-                    Get Free Key ↗
+                    Get Free Key 
                   </a>
                 </div>
                 <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl">
                   <p className="text-xs font-bold text-amber-800">
                     Groq gives you <strong>free access</strong> to Llama 3.3 70B, Mixtral, Gemma and more.
-                    Unlike Ollama, it works on any device — no local install needed.
-                    Sign up at console.groq.com → API Keys → Create Key → paste below.
+                    Unlike Ollama, it works on any device  no local install needed.
+                    Sign up at console.groq.com  API Keys  Create Key  paste below.
                   </p>
                 </div>
                 <div className="relative">
@@ -426,8 +426,8 @@ export const Settings: React.FC = () => {
                 </div>
                 {data.settings.groqKey && (
                   <div className="flex items-center gap-2 text-green-600 text-xs font-black">
-                    <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">✓</span>
-                    Groq key saved — switch to any Groq model in the AI chat
+                    <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center"></span>
+                    Groq key saved  switch to any Groq model in the AI chat
                   </div>
                 )}
               </div>

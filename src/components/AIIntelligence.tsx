@@ -11,19 +11,19 @@ import { chatWithGroq, speakText, stopSpeech } from "../lib/groq";
 import { ChatMessage } from "../types";
 import { cn } from "../lib/utils";
 
-// All models — Gemini + Groq (all verified live April 2026)
+// All models  Gemini + Groq (all verified live April 2026)
 const ALL_MODELS = [
-  // ── Gemini ──
-  { id: "gemini-2.5-flash",      name: "Gemini Flash",  type: "gemini", dot: "bg-blue-500",   desc: "Fast · Google" },
-  { id: "gemini-2.5-pro",        name: "Gemini Pro",    type: "gemini", dot: "bg-purple-500", desc: "Smartest · Google" },
-  { id: "gemini-2.5-flash-lite", name: "Gemini Lite",   type: "gemini", dot: "bg-indigo-400", desc: "Cheapest · Google" },
-  // ── Groq FREE — works on Vercel, Windows, everywhere ──
-  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",  type: "groq" as const, dot: "bg-amber-500",  desc: "Best quality · Free" },
-  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",   type: "groq" as const, dot: "bg-amber-400",  desc: "Instant · Free" },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",  type: "groq" as const, dot: "bg-orange-500", desc: "Latest Meta · Vision" },
+  //  Gemini 
+  { id: "gemini-2.5-flash",      name: "Gemini Flash",  type: "gemini", dot: "bg-blue-500",   desc: "Fast  Google" },
+  { id: "gemini-2.5-pro",        name: "Gemini Pro",    type: "gemini", dot: "bg-purple-500", desc: "Smartest  Google" },
+  { id: "gemini-2.5-flash-lite", name: "Gemini Lite",   type: "gemini", dot: "bg-indigo-400", desc: "Cheapest  Google" },
+  //  Groq FREE  works on Vercel, Windows, everywhere 
+  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",  type: "groq" as const, dot: "bg-amber-500",  desc: "Best quality  Free" },
+  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",   type: "groq" as const, dot: "bg-amber-400",  desc: "Instant  Free" },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",  type: "groq" as const, dot: "bg-orange-500", desc: "Latest Meta  Vision" },
   { id: "openai/gpt-oss-120b",                       name: "GPT OSS 120B",   type: "groq" as const, dot: "bg-green-500",  desc: "Most powerful" },
   { id: "openai/gpt-oss-20b",                        name: "GPT OSS 20B",    type: "groq" as const, dot: "bg-green-400",  desc: "Fast reasoning" },
-  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",     type: "groq" as const, dot: "bg-teal-500",   desc: "Multilingual · Reasoning" },
+  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",     type: "groq" as const, dot: "bg-teal-500",   desc: "Multilingual  Reasoning" },
 ];
 
 const MODES = [
@@ -75,7 +75,7 @@ export const AIIntelligence: React.FC = () => {
     return () => clearInterval(t);
   }, [isLive]);
 
-  // ── Task actions ─────────────────────────────────────────────────────
+  //  Task actions 
   const handleTaskAction = (args: any) => {
     const { action, text, taskId } = args;
     if (action === "create" && text) {
@@ -87,7 +87,7 @@ export const AIIntelligence: React.FC = () => {
     }
   };
 
-  // ── SPEAK: Groq Orpheus TTS → Gemini TTS → browser fallback ─────────
+  //  SPEAK: Groq Orpheus TTS  Gemini TTS  browser fallback 
   const handleSpeak = async (msgId: string, text: string) => {
     if (playingMsgId === msgId) {
       stopFnRef.current?.();
@@ -109,7 +109,7 @@ export const AIIntelligence: React.FC = () => {
     stopFnRef.current = stopFn;
   };
 
-  // ── Send message ──────────────────────────────────────────────────────
+  //  Send message 
   const handleSend = async (overrideInput?: string) => {
     const text = (overrideInput ?? input).trim();
     if (!text || loading) return;
@@ -126,12 +126,12 @@ export const AIIntelligence: React.FC = () => {
       let usedModel = selectedModel.name;
 
       if (selectedModel.type === "gemini") {
-        if (!data.settings.geminiKey) throw new Error("No Gemini key. Add it in Settings → Integrations, or switch to a Groq model (free).");
+        if (!data.settings.geminiKey) throw new Error("No Gemini key. Add it in Settings  Integrations, or switch to a Groq model (free).");
         const result = await chatWithGemini(currentMessages, data, selectedModel.id, undefined, handleTaskAction);
         responseText = result.text;
       } else {
-        // Groq — works on Vercel, Windows app, everywhere
-        if (!data.settings.groqKey) throw new Error("No Groq key. Get one free at console.groq.com → Add it in Settings → Integrations.");
+        // Groq  works on Vercel, Windows app, everywhere
+        if (!data.settings.groqKey) throw new Error("No Groq key. Get one free at console.groq.com  Add it in Settings  Integrations.");
         const result = await chatWithGroq(currentMessages, data, selectedModel.id, handleTaskAction);
         responseText = result.text;
       }
@@ -159,7 +159,7 @@ export const AIIntelligence: React.FC = () => {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: `⚠ ${err.message || "Something went wrong."}`,
+        content: ` ${err.message || "Something went wrong."}`,
         timestamp: Date.now(),
       }]);
       if (isLive) setLiveState("Listening");
@@ -168,7 +168,7 @@ export const AIIntelligence: React.FC = () => {
     }
   };
 
-  // ── Voice recording ───────────────────────────────────────────────────
+  //  Voice recording 
   const startVoice = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert("Voice input needs Chrome or Edge."); return; }
@@ -189,7 +189,7 @@ export const AIIntelligence: React.FC = () => {
   };
   const stopVoice = () => { try { voiceRecRef.current?.stop(); } catch {} };
 
-  // ── Live Mode ─────────────────────────────────────────────────────────
+  //  Live Mode 
   const startLive = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert("Live mode needs Chrome or Edge."); return; }
@@ -248,16 +248,16 @@ export const AIIntelligence: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Model selector — stays on what user picks */}
+          {/* Model selector  stays on what user picks */}
           <select
             className="bg-gray-100 border-none rounded-xl px-3 py-2 text-xs font-bold outline-none cursor-pointer hover:bg-gray-200 transition-all max-w-[160px]"
             value={selectedModel.id}
             onChange={(e) => { const m = ALL_MODELS.find(m => m.id === e.target.value); if (m) setSelectedModel(m); }}
           >
-            <optgroup label="── Gemini (needs Gemini key)">
+            <optgroup label=" Gemini (needs Gemini key)">
               {ALL_MODELS.filter(m => m.type === "gemini").map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </optgroup>
-            <optgroup label="── Groq FREE (works everywhere)">
+            <optgroup label=" Groq FREE (works everywhere)">
               {ALL_MODELS.filter(m => m.type === "groq").map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </optgroup>
           </select>
@@ -273,12 +273,12 @@ export const AIIntelligence: React.FC = () => {
       {/* No key warning */}
       {!hasKey && (
         <div className="relative z-10 mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
-          <span className="text-amber-500 text-lg">⚠</span>
+          <span className="text-amber-500 text-lg"></span>
           <div>
             <p className="text-xs font-black text-amber-800">
               {selectedModel.type === "groq"
-                ? "No Groq key — get a FREE one at console.groq.com, then add in Settings → Integrations"
-                : "No Gemini key — add in Settings → Integrations, or switch to a Groq model (free)"}
+                ? "No Groq key  get a FREE one at console.groq.com, then add in Settings  Integrations"
+                : "No Gemini key  add in Settings  Integrations, or switch to a Groq model (free)"}
             </p>
           </div>
         </div>
@@ -302,7 +302,7 @@ export const AIIntelligence: React.FC = () => {
                 <p className="text-xs text-blue-800 font-bold">Needs Google API key. High quality TTS voice included.</p>
               </div>
               <div className="bg-amber-50 rounded-2xl p-4 text-left">
-                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Groq FREE ✓</p>
+                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Groq FREE </p>
                 <p className="text-xs text-amber-800 font-bold">Free key at console.groq.com. Works on Vercel & everywhere.</p>
               </div>
             </div>
@@ -366,7 +366,7 @@ export const AIIntelligence: React.FC = () => {
           <input type="text" value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            placeholder={isRecording ? "Listening… release to send" : `Message ${data.settings.ai.identity.name}…`}
+            placeholder={isRecording ? "Listening release to send" : `Message ${data.settings.ai.identity.name}`}
             className="flex-1 bg-transparent px-1 py-3 outline-none font-bold text-base"
           />
           <button
@@ -396,7 +396,7 @@ export const AIIntelligence: React.FC = () => {
               <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-2xl shadow-blue-500/40">
                 <Brain className="text-white w-5 h-5" />
               </div>
-              <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Live · {fmt(liveTimer)}</p>
+              <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Live  {fmt(liveTimer)}</p>
             </div>
             <div className="relative z-10 flex flex-col items-center gap-8">
               <div className="w-52 h-52 rounded-full border border-white/10 flex items-center justify-center bg-slate-800/60 backdrop-blur-3xl shadow-2xl relative">
