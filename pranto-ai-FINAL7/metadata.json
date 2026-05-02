@@ -1,0 +1,8 @@
+{
+  "name": "Pranto AI",
+  "description": "Peak cognitive performance and AI-driven growth workspace powered by Pranto AI.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": []
+}
