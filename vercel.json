@@ -1,14 +1,15 @@
 {
-  rewrites: [
+  "rewrites": [
     {
-      destination: /index.html
+      "source": "/((?!assets|sw.js|manifest.json|icon|favicon|intro).*)",
+      "destination": "/index.html"
     }
   ],
-  headers: [
+  "headers": [
     {
-      source: /sw.js,
-      headers: [
-        { key: Cache-Control, value: no-cache, no-store, must-revalidate }
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     }
   ]
