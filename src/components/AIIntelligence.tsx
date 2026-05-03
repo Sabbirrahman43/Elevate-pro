@@ -10,6 +10,8 @@ import { chatWithGemini } from "../lib/gemini";
 import { chatWithGroq, speakText, stopSpeech } from "../lib/groq";
 import { ChatMessage } from "../types";
 import { cn } from "../lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // All models  Gemini + Groq (all verified live April 2026)
 const ALL_MODELS = [
@@ -315,7 +317,15 @@ export const AIIntelligence: React.FC = () => {
             className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
             <div className={cn("max-w-[85%] px-5 py-4 rounded-[2rem] relative group/msg shadow-sm",
               msg.role === "user" ? "bg-blue-600 text-white rounded-tr-sm" : "bg-gray-100 text-gray-800 rounded-tl-sm border border-gray-200")}>
-              <p className="text-base leading-relaxed font-medium whitespace-pre-wrap">{msg.content}</p>
+              <div className={cn(
+                "text-base leading-relaxed font-medium",
+                msg.role === "user" ? "text-white" : "text-gray-800 prose prose-sm max-w-none prose-p:my-1 prose-headings:font-black prose-table:text-xs prose-strong:text-gray-900 prose-a:text-blue-600"
+              )}>
+                {msg.role === "user"
+                  ? <p className="whitespace-pre-wrap">{msg.content}</p>
+                  : <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                }
+              </div>
               <div className={cn("mt-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-40",
                 msg.role === "user" ? "justify-end" : "justify-start")}>
                 {msg.model && <span>{msg.model}</span>}
