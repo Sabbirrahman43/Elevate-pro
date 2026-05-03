@@ -120,10 +120,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [user, syncToCloud]);
 
   const signOut = useCallback(async () => {
-    try { await supabase.auth.signOut(); } catch {}
+    try { await supabase.auth.signOut({ scope: "global" }); } catch {}
     localStorage.removeItem("elevate_guest");
     localStorage.removeItem(LS);
-    setUser(null); setData(DEFAULT_DATA);
+    sessionStorage.clear();
+    setUser(null);
+    setData(DEFAULT_DATA);
+    window.location.href = window.location.origin;
   }, []);
 
   const hardReset = useCallback(async () => {
