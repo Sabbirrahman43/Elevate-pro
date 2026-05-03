@@ -1,0 +1,198 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { LayoutDashboard, CheckSquare, ListTodo, Bot, Settings, Shield, Moon, Sun, LogOut, Bell, BookOpen } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { useAppContext } from '../context/AppContext';
+import { motion, AnimatePresence } from 'motion/react';
+
+const NinjaCanvas: React.FC = () => {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const W = 256, H = 160, G = H - 10;
+    canvas.width = W; canvas.height = H;
+
+    type P = { x: number; y: number; vx: number; vy: number; life: number; decay: number; r: number; color: string };
+    const pts: P[] = [];
+
+    const boom = (x: number, y: number, color: string) => {
+      for (let i = 0; i < 8; i++) {
+        const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 6;
+        pts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 3, life: 1, decay: 0.05 + Math.random() * 0.04, r: 2 + Math.random() * 3, color });
+      }
+    };
+
+    const drawF = (x: number, y: number, right: boolean, st: string, fr: number, hb: string, sc: number) => {
+      ctx.save(); ctx.translate(x, y); if (!right) ctx.scale(-1, 1); ctx.scale(sc, sc);
+      const t = fr * 0.2;
+      let fL = 0.15, bL = -0.15, fA = -0.3, bA = 0.35, lean = 0, kb = 0;
+      if (st === 'run') { const s = Math.sin(t * 3); fL = s * 0.8; bL = -s * 0.8; fA = -s * 0.6; bA = s * 0.6; lean = 0.2; kb = Math.abs(s) * 0.4; }
+      else if (st === 'a1') { fA = -1.8; bA = 0.9; fL = 0.5; lean = 0.4; }
+      else if (st === 'a2') { fL = -1.5; fA = -0.9; lean = 0.3; }
+      else if (st === 'a3') { fA = -2.2 + Math.sin(t * 5) * 0.5; lean = 0.4; }
+      else if (st === 'jump') { fL = -0.6; bL = 0.6; fA = -1.1; kb = 0.7; }
+      else if (st === 'hurt') { lean = -0.45; fA = 0.9; }
+      const body = 'rgba(12,12,16,0.97)', hR = 10, bH = 25, lH = 29, aL = 19;
+      const shY = -bH - hR * 2 + 3, hipY = -lH + 3, bx = Math.sin(lean) * 4;
+      ctx.strokeStyle = body; ctx.fillStyle = body; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.globalAlpha = 0.3;
+      const bkx = Math.sin(bL) * lH * 0.5, bky = hipY + Math.cos(Math.abs(bL)) * lH * 0.5 + kb * 10;
+      ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(bkx, bky); ctx.lineTo(bkx + Math.sin(bL + kb) * lH * 0.45, bky + lH * 0.5); ctx.stroke();
+      const baex = Math.sin(bA) * aL * 0.5, baey = shY + Math.cos(Math.abs(bA)) * aL * 0.5;
+      ctx.beginPath(); ctx.moveTo(0, shY); ctx.lineTo(baex, baey); ctx.lineTo(baex + Math.sin(bA * 0.7) * aL * 0.5, baey + aL * 0.45); ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(bx, shY); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bx, shY - hR, hR, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx, shY - hR, hR + 1.5, Math.PI * 0.7, Math.PI * 0.3);
+      ctx.strokeStyle = hb; ctx.lineWidth = 3; ctx.shadowColor = hb; ctx.shadowBlur = 16; ctx.stroke();
+      ctx.strokeStyle = body; ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 8; ctx.lineWidth = 3;
+      const fkx = Math.sin(fL) * lH * 0.5, fky = hipY + Math.cos(Math.abs(fL)) * lH * 0.5 + kb * 8;
+      ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(fkx, fky); ctx.lineTo(fkx + Math.sin(fL + kb * 0.5) * lH * 0.45, fky + lH * 0.5); ctx.stroke();
+      const faex = bx + Math.sin(fA) * aL * 0.5, faey = shY + Math.cos(Math.abs(fA)) * aL * 0.5;
+      const fahx = faex + Math.sin(fA * 0.8) * aL * 0.5, fahy = faey + aL * 0.5;
+      ctx.beginPath(); ctx.moveTo(bx, shY); ctx.lineTo(faex, faey); ctx.lineTo(fahx, fahy); ctx.stroke();
+      const sa = fA - 0.2, sL = st.startsWith('a') ? 48 : 30;
+      ctx.beginPath(); ctx.moveTo(fahx, fahy); ctx.lineTo(fahx + Math.sin(sa) * sL, fahy - Math.cos(sa) * sL * 0.35);
+      ctx.strokeStyle = hb === 'rgba(80,190,255,0.95)' ? 'rgba(150,220,255,0.9)' : 'rgba(255,255,255,0.4)';
+      ctx.shadowColor = hb; ctx.shadowBlur = st.startsWith('a') ? 22 : 8; ctx.lineWidth = 2; ctx.stroke();
+      if (st === 'a1' || st === 'a3') {
+        for (let i = 1; i <= 3; i++) {
+          ctx.beginPath(); ctx.moveTo(fahx, fahy); ctx.lineTo(fahx + Math.sin(sa + i * 0.18) * sL * 0.8, fahy - Math.cos(sa + i * 0.18) * sL * 0.3);
+          ctx.strokeStyle = 'rgba(255,255,255,' + (0.08 / i) + ')'; ctx.lineWidth = 8 - i * 2; ctx.shadowBlur = 0; ctx.stroke();
+        }
+      }
+      ctx.restore();
+    };
+
+    type F = { x: number; y: number; vy: number; st: string; t: number; fr: number; right: boolean; hb: string; kb: number };
+    const hero: F = { x: 45, y: G, vy: 0, st: 'idle', t: 30, fr: 0, right: true, hb: 'rgba(80,190,255,0.95)', kb: 0 };
+    const enemies: F[] = [
+      { x: 210, y: G, vy: 0, st: 'idle', t: 40, fr: 0, right: false, hb: 'rgba(255,255,255,0.25)', kb: 0 },
+      { x: 248, y: G, vy: 0, st: 'idle', t: 60, fr: 0, right: false, hb: 'rgba(255,255,255,0.18)', kb: 0 },
+      { x: 175, y: G, vy: 0, st: 'idle', t: 50, fr: 0, right: false, hb: 'rgba(255,255,255,0.12)', kb: 0 },
+    ];
+
+    const upd = (f: F, tx: number, isHero: boolean) => {
+      f.fr++; f.t--;
+      if (f.kb !== 0) { f.x += f.kb; f.kb *= 0.6; if (Math.abs(f.kb) < 0.3) f.kb = 0; }
+      if (f.y < G) { f.vy += 1.2; f.y += f.vy; if (f.y >= G) { f.y = G; f.vy = 0; if (f.st === 'jump') f.st = 'idle'; } }
+      if (!isHero && f.x < 15) { f.x = 190 + Math.random() * 60; f.st = 'idle'; f.t = 30; }
+      if (f.t > 0) return;
+      const dist = Math.abs(f.x - tx), r = Math.random();
+      if (isHero) {
+        if (dist < 70) {
+          const atk = r < 0.45 ? 'a1' : r < 0.7 ? 'a2' : 'a3'; f.st = atk; f.t = 10 + Math.floor(r * 8);
+          enemies.forEach(e => { if (Math.abs(e.x - f.x) < 80) { e.kb = 28; e.st = 'hurt'; e.t = 12; boom((f.x + e.x) / 2, G - 55, 'rgba(80,190,255,0.8)'); } });
+        } else if (dist < 150) { if (r < 0.4) { f.st = 'jump'; f.t = 22; f.vy = -16; } else { f.st = 'a1'; f.t = 12; } }
+        else { f.st = 'run'; f.t = 8; f.x = Math.min(f.x + 42, W - 20); }
+      } else {
+        if (f.st === 'hurt') { f.st = 'idle'; f.t = 18; return; }
+        if (dist < 85) { if (r < 0.4) { f.st = 'a1'; f.t = 14; } else if (r < 0.65) { f.st = 'a2'; f.t = 16; } else if (r < 0.8) { f.st = 'jump'; f.t = 20; f.vy = -14; } else { f.st = 'idle'; f.t = 15; } }
+        else { f.st = 'run'; f.t = 10; f.x = Math.max(f.x - 38, tx + 60); }
+      }
+      f.x = Math.max(12, Math.min(W - 12, f.x));
+    };
+
+    let aId: number;
+    const loop = () => {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(0, G + 1, W, 1);
+      const near = enemies.reduce((a, b) => Math.abs(b.x - hero.x) < Math.abs(a.x - hero.x) ? b : a);
+      upd(hero, near.x, true);
+      enemies.forEach(e => upd(e, hero.x, false));
+      [hero, ...enemies].forEach(f => { ctx.save(); ctx.globalAlpha = 0.1; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(f.x, G + 3, 20, 5, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+      enemies.forEach(e => drawF(e.x, e.y, e.right, e.st, e.fr, e.hb, 0.8));
+      drawF(hero.x, hero.y, hero.right, hero.st, hero.fr, hero.hb, 1.0);
+      for (let i = pts.length - 1; i >= 0; i--) {
+        const p = pts[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.3; p.life -= p.decay;
+        if (p.life <= 0) { pts.splice(i, 1); continue; }
+        ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      }
+      aId = requestAnimationFrame(loop);
+    };
+    aId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(aId);
+  }, []);
+  return <canvas ref={ref} className="w-full" style={{ opacity: 0.85 }} />;
+};
+
+type Props = { activeTab: string; setActiveTab: (t: string) => void };
+
+export const Sidebar: React.FC<Props> = ({ activeTab, setActiveTab }) => {
+  const { userProfile, theme, setTheme, logout } = useAppContext();
+  const [showNotes, setShowNotes] = useState(false);
+
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'habits', label: 'Habits', icon: CheckSquare },
+    { id: 'tasks', label: 'Tasks', icon: ListTodo },
+    { id: 'ai', label: 'Intelligence', icon: Bot },
+    { id: 'notes', label: 'Notepad', icon: BookOpen },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+  if (userProfile?.email === 'prantorahman6900@gmail.com') {
+    tabs.push({ id: 'admin', label: 'Admin', icon: Shield });
+  }
+
+  return (
+    <div className="w-64 h-full flex flex-col bg-[#0d0d0d] border-r border-white/5">
+      {/* Header */}
+      <div className="p-5 border-b border-white/5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#10b981" strokeWidth="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <span className="font-bold text-white font-display tracking-tight">Elevate</span>
+          </div>
+          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-1.5 rounded-lg text-gray-600 hover:text-gray-300 hover:bg-white/5 transition-all">
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={cn('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium',
+                active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15' : 'text-gray-500 hover:text-gray-200 hover:bg-white/4')}>
+              <Icon size={16} className={active ? 'text-emerald-400' : ''} />
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Ninja arena */}
+      <div className="mx-3 mb-2 rounded-xl overflow-hidden border border-white/4">
+        <NinjaCanvas />
+      </div>
+
+      {/* User */}
+      <div className="p-3 border-t border-white/5">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+            {userProfile?.avatar
+              ? <img src={userProfile.avatar} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              : <span className="text-emerald-400 font-bold text-sm">{(userProfile?.name || 'U').charAt(0).toUpperCase()}</span>}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-white truncate">{userProfile?.name || 'User'}</p>
+            <p className="text-[10px] text-gray-600 truncate">{userProfile?.email || ''}</p>
+          </div>
+          <button onClick={logout} className="p-1.5 text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10">
+            <LogOut size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

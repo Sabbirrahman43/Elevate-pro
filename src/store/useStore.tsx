@@ -1,39 +1,51 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
-import { ElevateData } from "../types";
+import { WorkspaceData } from "../types";
 
-const DEFAULT_DATA: ElevateData = {
+const DEFAULT_DATA: WorkspaceData = {
   tasks: [], habits: [], notes: [], messages: [],
   offDays: ["Sat", "Sun"],
+  practiceQueue: [],
+  history: [],
+  stats: { totalSessions: 0, focusTime: 0 },
   settings: {
-    geminiKey: "", ollamaModel: "qwen2.5:7b", ollamaUrl: "http://localhost:11434",
+    geminiKey: "",
+    groqKey: "",
     profile: { name: "", dob: "", about: "", goals: "" },
     ai: {
       identity: { name: "Aria", persona: "Coach", behavior: "Motivating, warm, emotionally intelligent." },
       voice: { selected: "Kore", autoplay: true }
-    }
+    },
+    selectedModelId: "llama-3.3-70b-versatile",
   },
-  lastSync: 0
+  lastSync: 0,
+  hasCompletedOnboarding: false,
+  hasDismissedBulletin: false,
 };
 
 interface StoreCtx {
-  data: ElevateData; user: any; loading: boolean;
-  updateData: (d: Partial<ElevateData>) => void;
+  data: WorkspaceData;
+  user: any;
+  loading: boolean;
+  updateData: (d: Partial<WorkspaceData>) => void;
   syncToCloud: () => Promise<void>;
   signOut: () => Promise<void>;
   hardReset: () => Promise<void>;
 }
 
 const Ctx = createContext<StoreCtx | undefined>(undefined);
-const LS = "elevate_data";
+const LS = "elevate_data_v2";
 
-const loadLocal = (): ElevateData => {
+const loadLocal = (): WorkspaceData => {
   try {
     const s = localStorage.getItem(LS);
     if (!s) return DEFAULT_DATA;
     const p = JSON.parse(s);
     return {
       ...DEFAULT_DATA, ...p,
+      practiceQueue: p.practiceQueue || [],
+      history: p.history || [],
+      stats: { ...DEFAULT_DATA.stats, ...(p.stats || {}) },
       settings: {
         ...DEFAULT_DATA.settings, ...p.settings,
         ai: {
@@ -47,7 +59,7 @@ const loadLocal = (): ElevateData => {
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [data, setData] = useState<ElevateData>(loadLocal);
+  const [data, setData] = useState<WorkspaceData>(loadLocal);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,8 +71,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const { data: cloud, error } = await supabase.from("user_data").select("data").eq("id", uid).single();
       if (!error && cloud?.data) {
-        const remote = cloud.data as ElevateData;
-        setData(prev => remote.lastSync > prev.lastSync ? { ...DEFAULT_DATA, ...remote } : prev);
+        const remote = cloud.data as WorkspaceData;
+        setData(prev => remote.lastSync > prev.lastSync
+          ? { ...DEFAULT_DATA, ...remote, practiceQueue: remote.practiceQueue || [], history: remote.history || [] }
+          : prev);
       }
     } catch {}
   }, []);
@@ -71,11 +85,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setLoading(false);
       return;
     }
-
-    // KEY FIX: ONLY use onAuthStateChange - never getSession().
-    // After Google redirect the token is in the URL hash.
-    // onAuthStateChange detects it and fires SIGNED_IN automatically.
-    // getSession() runs before Supabase parses the hash - always returns null.
+    // KEY FIX: only onAuthStateChange, never getSession
+    // After Google redirect, token is in URL hash - onAuthStateChange detects it automatically
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
@@ -86,16 +97,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setUser(null);
       }
       setLoading(false);
-      // Clean ugly hash from URL bar after Google redirect
       if (window.location.hash.includes("access_token")) {
         window.history.replaceState(null, "", window.location.pathname);
       }
     });
-
     return () => subscription.unsubscribe();
   }, [loadCloud]);
 
-  const updateData = useCallback((newData: Partial<ElevateData>) => {
+  const updateData = useCallback((newData: Partial<WorkspaceData>) => {
     setData(prev => ({ ...prev, ...newData, lastSync: Date.now() }));
   }, []);
 

@@ -162,9 +162,13 @@ export const Settings: React.FC = () => {
                       <Camera className="w-10 h-10 text-gray-300" />
                     )}
                   </div>
-                  <button className="absolute -bottom-2 -right-2 bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-500/30 opacity-0 group-hover:opacity-100 transition-all">
+                  <label className="absolute -bottom-2 -right-2 bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-500/30 opacity-0 group-hover:opacity-100 transition-all cursor-pointer">
                     <Upload className="w-5 h-5" />
-                  </button>
+                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                      const file = e.target.files?.[0]; if (!file) return;
+                      const r = new FileReader(); r.onloadend = () => updateData({ settings: { ...data.settings, profile: { ...data.settings.profile, avatar: r.result as string } } }); r.readAsDataURL(file);
+                    }} />
+                  </label>
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-black text-gray-900">Personal Identity</h3>
@@ -250,9 +254,13 @@ export const Settings: React.FC = () => {
                     )}
                   </div>
                   <div className="absolute -bottom-2 -right-2 flex gap-1">
-                    <button className="bg-white p-3 rounded-2xl text-blue-600 shadow-lg opacity-0 group-hover:opacity-100 transition-all border border-gray-100">
+                    <label className="bg-white p-3 rounded-2xl text-blue-600 shadow-lg opacity-0 group-hover:opacity-100 transition-all border border-gray-100 cursor-pointer">
                       <Camera className="w-5 h-5" />
-                    </button>
+                      <input type="file" accept="image/*" className="hidden" onChange={e => {
+                        const file = e.target.files?.[0]; if (!file) return;
+                        const r = new FileReader(); r.onloadend = () => updateData({ settings: { ...data.settings, ai: { ...data.settings.ai, identity: { ...data.settings.ai.identity, avatar: r.result as string } } } }); r.readAsDataURL(file);
+                      }} />
+                    </label>
                     <button className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all">
                       <Wand2 className="w-5 h-5" />
                     </button>

@@ -31,6 +31,7 @@ const MODES = [
   { id: "Research",  icon: Search,   desc: "Deep & precise" },
   { id: "Support",   icon: Zap,      desc: "Listen & empathize" },
   { id: "Planner",   icon: Calendar, desc: "Break into steps" },
+  { id: "Learner",   icon: Brain,    desc: "Study & learn" },
 ];
 
 export const AIIntelligence: React.FC = () => {
@@ -127,12 +128,12 @@ export const AIIntelligence: React.FC = () => {
 
       if (selectedModel.type === "gemini") {
         if (!data.settings.geminiKey) throw new Error("No Gemini key. Add it in Settings  Integrations, or switch to a Groq model (free).");
-        const result = await chatWithGemini(currentMessages, data, selectedModel.id, undefined, handleTaskAction);
+        const result = await chatWithGemini(currentMessages, { ...data, _mode: selectedMode } as any, selectedModel.id, undefined, handleTaskAction);
         responseText = result.text;
       } else {
         // Groq  works on Vercel, Windows app, everywhere
         if (!data.settings.groqKey) throw new Error("No Groq key. Get one free at console.groq.com  Add it in Settings  Integrations.");
-        const result = await chatWithGroq(currentMessages, data, selectedModel.id, handleTaskAction);
+        const result = await chatWithGroq(currentMessages, { ...data, _mode: selectedMode } as any, selectedModel.id, handleTaskAction);
         responseText = result.text;
       }
 
