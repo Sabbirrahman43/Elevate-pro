@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useStore } from "../store/useStore";
 import {
   Send, Mic, Phone, PhoneOff, Image as ImageIcon,
-  Settings2, Trash2, Copy, RefreshCw, Search, Users, Calendar,
+  Trash2, Copy, Search, Users, Calendar,
   Zap, Volume2, Brain, Loader2, Square, StopCircle, MicOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -13,28 +13,42 @@ import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-// All models  Gemini + Groq (all verified live April 2026)
 const ALL_MODELS = [
-  //  Gemini 
-  { id: "gemini-2.5-flash",      name: "Gemini Flash",  type: "gemini", dot: "bg-blue-500",   desc: "Fast  Google" },
-  { id: "gemini-2.5-pro",        name: "Gemini Pro",    type: "gemini", dot: "bg-purple-500", desc: "Smartest  Google" },
-  { id: "gemini-2.5-flash-lite", name: "Gemini Lite",   type: "gemini", dot: "bg-indigo-400", desc: "Cheapest  Google" },
-  //  Groq FREE  works on Vercel, Windows, everywhere 
-  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",  type: "groq" as const, dot: "bg-amber-500",  desc: "Best quality  Free" },
-  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",   type: "groq" as const, dot: "bg-amber-400",  desc: "Instant  Free" },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",  type: "groq" as const, dot: "bg-orange-500", desc: "Latest Meta  Vision" },
+  { id: "auto",                                      name: "Auto",         type: "auto" as const,   dot: "bg-gradient-to-r from-blue-500 to-purple-500", desc: "Smart fallback" },
+  { id: "gemini-2.5-flash",                          name: "Gemini Flash", type: "gemini" as const, dot: "bg-blue-500",   desc: "Fast · Google" },
+  { id: "gemini-2.5-pro",                            name: "Gemini Pro",   type: "gemini" as const, dot: "bg-purple-500", desc: "Smartest · Google" },
+  { id: "gemini-2.5-flash-lite",                     name: "Gemini Lite",  type: "gemini" as const, dot: "bg-indigo-400", desc: "Cheapest · Google" },
+  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",  type: "groq" as const, dot: "bg-amber-500",  desc: "Best quality · Free" },
+  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",   type: "groq" as const, dot: "bg-amber-400",  desc: "Instant · Free" },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",  type: "groq" as const, dot: "bg-orange-500", desc: "Latest Meta" },
   { id: "openai/gpt-oss-120b",                       name: "GPT OSS 120B",   type: "groq" as const, dot: "bg-green-500",  desc: "Most powerful" },
   { id: "openai/gpt-oss-20b",                        name: "GPT OSS 20B",    type: "groq" as const, dot: "bg-green-400",  desc: "Fast reasoning" },
-  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",     type: "groq" as const, dot: "bg-teal-500",   desc: "Multilingual  Reasoning" },
+  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",     type: "groq" as const, dot: "bg-teal-500",   desc: "Multilingual" },
 ];
 
 const MODES = [
-  { id: "Chat",      icon: Users,    desc: "Warm companion" },
-  { id: "Research",  icon: Search,   desc: "Deep & precise" },
-  { id: "Support",   icon: Zap,      desc: "Listen & empathize" },
-  { id: "Planner",   icon: Calendar, desc: "Break into steps" },
-  { id: "Learner",   icon: Brain,    desc: "Study & learn" },
+  { id: "Chat",     icon: Users,    desc: "Warm companion" },
+  { id: "Research", icon: Search,   desc: "Deep & precise" },
+  { id: "Support",  icon: Zap,      desc: "Listen & empathize" },
+  { id: "Planner",  icon: Calendar, desc: "Break into steps" },
+  { id: "Learner",  icon: Brain,    desc: "Study & learn" },
 ];
+
+// Resolve auto model: try groq first if key available, else gemini, else first available
+const resolveAutoModel = (data: any) => {
+  const hasGroq = !!data.settings.groqKey;
+  const hasGemini = !!data.settings.geminiKey;
+  if (hasGroq) return ALL_MODELS.find(m => m.id === "llama-3.3-70b-versatile")!;
+  if (hasGemini) return ALL_MODELS.find(m => m.id === "gemini-2.5-flash")!;
+  return ALL_MODELS.find(m => m.id === "llama-3.3-70b-versatile")!;
+};
+
+function speakBrowser(text: string, voice: string, onEnd: () => void): () => void {
+  const utt = new SpeechSynthesisUtterance(text.substring(0, 500));
+  utt.onend = onEnd;
+  window.speechSynthesis.speak(utt);
+  return () => window.speechSynthesis.cancel();
+}
 
 export const AIIntelligence: React.FC = () => {
   const { data, updateData } = useStore();
@@ -48,21 +62,22 @@ export const AIIntelligence: React.FC = () => {
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(() => ALL_MODELS[0]);
+
+  // Model persisted in store — never resets on tab switch
+  const savedModelId = (data.settings as any).selectedModelId || "auto";
+  const selectedModel = ALL_MODELS.find(m => m.id === savedModelId) || ALL_MODELS[0];
+  const setSelectedModel = (m: typeof ALL_MODELS[0]) => {
+    updateData({ settings: { ...data.settings, selectedModelId: m.id } } as any);
+  };
+
   const [selectedMode, setSelectedMode] = useState("Chat");
   const [isLive, setIsLive] = useState(false);
   const [bgImage, setBgImage] = useState<string | null>(null);
-
-  // Voice recording
   const [isRecording, setIsRecording] = useState(false);
   const voiceRecRef = useRef<any>(null);
-
-  // TTS per message
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
   const [ttsLoading, setTtsLoading] = useState<string | null>(null);
   const stopFnRef = useRef<(() => void) | null>(null);
-
-  // Live mode
   const [liveState, setLiveState] = useState<"Listening" | "Thinking" | "Speaking">("Listening");
   const [liveTimer, setLiveTimer] = useState(0);
   const recognitionRef = useRef<any>(null);
@@ -78,41 +93,60 @@ export const AIIntelligence: React.FC = () => {
     return () => clearInterval(t);
   }, [isLive]);
 
-  //  Task actions 
   const handleTaskAction = (args: any) => {
     const { action, text, taskId } = args;
     if (action === "create" && text) {
       updateData({ tasks: [...data.tasks, { id: Date.now().toString(), text, completed: false, date: new Date().toISOString().split("T")[0], createdAt: Date.now() }] });
     } else if (action === "delete" && taskId) {
-      updateData({ tasks: data.tasks.filter(t => t.id !== taskId) });
+      updateData({ tasks: data.tasks.filter((t: any) => t.id !== taskId) });
     } else if (action === "toggle" && taskId) {
-      updateData({ tasks: data.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t) });
+      updateData({ tasks: data.tasks.map((t: any) => t.id === taskId ? { ...t, completed: !t.completed } : t) });
     }
   };
 
-  //  SPEAK: Groq Orpheus TTS  Gemini TTS  browser fallback 
   const handleSpeak = async (msgId: string, text: string) => {
     if (playingMsgId === msgId) {
-      stopFnRef.current?.();
-      stopSpeech();
-      setPlayingMsgId(null);
-      setTtsLoading(null);
+      stopFnRef.current?.(); stopSpeech();
+      setPlayingMsgId(null); setTtsLoading(null);
       return;
     }
-    stopFnRef.current?.();
-    stopSpeech();
-    setPlayingMsgId(msgId);
-    setTtsLoading(msgId);
-
-    const stopFn = await speakText(text, data, () => {
-      setPlayingMsgId(null);
-      setTtsLoading(null);
-    });
+    stopFnRef.current?.(); stopSpeech();
+    setPlayingMsgId(msgId); setTtsLoading(msgId);
+    const stopFn = await speakText(text, data, () => { setPlayingMsgId(null); setTtsLoading(null); });
     setTtsLoading(null);
     stopFnRef.current = stopFn;
   };
 
-  //  Send message 
+  // Auto mode: try preferred model, fall back gracefully on error
+  const callWithAutoFallback = async (msgs: ChatMessage[], modeKey: string): Promise<string> => {
+    const hasGroq = !!data.settings.groqKey;
+    const hasGemini = !!data.settings.geminiKey;
+    const preferred = resolveAutoModel(data);
+
+    const tryGroq = async (modelId: string) => {
+      const result = await chatWithGroq(msgs, { ...data, _mode: modeKey } as any, modelId, handleTaskAction);
+      return result.text;
+    };
+    const tryGemini = async (modelId: string) => {
+      const result = await chatWithGemini(msgs, { ...data, _mode: modeKey } as any, modelId, undefined, handleTaskAction);
+      return result.text;
+    };
+
+    // Try preferred, then fall back to the other provider
+    try {
+      if (preferred.type === "groq" && hasGroq) return await tryGroq(preferred.id);
+      if (preferred.type === "gemini" && hasGemini) return await tryGemini(preferred.id);
+    } catch (e: any) {
+      // Token/rate limit → try fallback
+      if (hasGemini && preferred.type === "groq") return await tryGemini("gemini-2.5-flash");
+      if (hasGroq && preferred.type === "gemini") return await tryGroq("llama-3.3-70b-versatile");
+      throw e;
+    }
+    if (!hasGroq && !hasGemini) throw new Error("No API key. Add a Groq (free) or Gemini key in Settings → Integrations.");
+    if (hasGroq) return await tryGroq("llama-3.3-70b-versatile");
+    return await tryGemini("gemini-2.5-flash");
+  };
+
   const handleSend = async (overrideInput?: string) => {
     const text = (overrideInput ?? input).trim();
     if (!text || loading) return;
@@ -128,13 +162,15 @@ export const AIIntelligence: React.FC = () => {
       let responseText = "";
       let usedModel = selectedModel.name;
 
-      if (selectedModel.type === "gemini") {
-        if (!data.settings.geminiKey) throw new Error("No Gemini key. Add it in Settings  Integrations, or switch to a Groq model (free).");
+      if (selectedModel.type === "auto") {
+        responseText = await callWithAutoFallback(currentMessages, selectedMode);
+        usedModel = "Auto";
+      } else if (selectedModel.type === "gemini") {
+        if (!data.settings.geminiKey) throw new Error("No Gemini key. Add it in Settings → Integrations, or switch to a Groq model (free).");
         const result = await chatWithGemini(currentMessages, { ...data, _mode: selectedMode } as any, selectedModel.id, undefined, handleTaskAction);
         responseText = result.text;
       } else {
-        // Groq  works on Vercel, Windows app, everywhere
-        if (!data.settings.groqKey) throw new Error("No Groq key. Get one free at console.groq.com  Add it in Settings  Integrations.");
+        if (!data.settings.groqKey) throw new Error("No Groq key. Get one free at console.groq.com → Add in Settings → Integrations.");
         const result = await chatWithGroq(currentMessages, { ...data, _mode: selectedMode } as any, selectedModel.id, handleTaskAction);
         responseText = result.text;
       }
@@ -146,10 +182,8 @@ export const AIIntelligence: React.FC = () => {
         timestamp: Date.now(),
         model: usedModel,
       };
-      const finalMessages = [...currentMessages, aiMsg];
-      setMessages(finalMessages);
+      setMessages([...currentMessages, aiMsg]);
 
-      // Auto-speak in live mode
       if (isLive) {
         setLiveState("Speaking");
         const stopFn = speakBrowser(responseText.substring(0, 500), data.settings.ai.voice.selected, () => {
@@ -160,10 +194,8 @@ export const AIIntelligence: React.FC = () => {
       }
     } catch (err: any) {
       setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: ` ${err.message || "Something went wrong."}`,
-        timestamp: Date.now(),
+        id: (Date.now() + 1).toString(), role: "assistant",
+        content: `⚠️ ${err.message || "Something went wrong."}`, timestamp: Date.now(),
       }]);
       if (isLive) setLiveState("Listening");
     } finally {
@@ -171,20 +203,13 @@ export const AIIntelligence: React.FC = () => {
     }
   };
 
-  //  Voice recording 
   const startVoice = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert("Voice input needs Chrome or Edge."); return; }
     const rec = new SR();
-    rec.continuous = false;
-    rec.interimResults = true;
-    rec.lang = "en-US";
+    rec.continuous = false; rec.interimResults = true; rec.lang = "en-US";
     rec.onstart = () => setIsRecording(true);
-    rec.onresult = (e: any) => {
-      let t = "";
-      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
-      setInput(t);
-    };
+    rec.onresult = (e: any) => { let t = ""; for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; setInput(t); };
     rec.onend = () => setIsRecording(false);
     rec.onerror = () => setIsRecording(false);
     voiceRecRef.current = rec;
@@ -192,37 +217,26 @@ export const AIIntelligence: React.FC = () => {
   };
   const stopVoice = () => { try { voiceRecRef.current?.stop(); } catch {} };
 
-  //  Live Mode 
   const startLive = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert("Live mode needs Chrome or Edge."); return; }
     const rec = new SR();
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.lang = "en-US";
-    rec.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript;
-      if (transcript) handleSend(transcript);
-    };
+    rec.continuous = false; rec.interimResults = false; rec.lang = "en-US";
+    rec.onresult = (e: any) => { const t = e.results[0][0].transcript; if (t) handleSend(t); };
     rec.onend = () => { if (isLive && liveState === "Listening") { try { rec.start(); } catch {} } };
     recognitionRef.current = rec;
-    setIsLive(true);
-    setLiveState("Listening");
+    setIsLive(true); setLiveState("Listening");
     rec.start();
   };
 
   const stopLive = () => {
-    recognitionRef.current?.stop();
-    recognitionRef.current = null;
-    stopSpeech();
-    setIsLive(false);
-    setLiveState("Listening");
-    setPlayingMsgId(null);
+    recognitionRef.current?.stop(); recognitionRef.current = null;
+    stopSpeech(); setIsLive(false); setLiveState("Listening"); setPlayingMsgId(null);
   };
 
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-
-  const hasKey = selectedModel.type === "gemini" ? !!data.settings.geminiKey : !!data.settings.groqKey;
+  const hasKey = selectedModel.type === "auto" ? (!!data.settings.groqKey || !!data.settings.geminiKey) :
+    selectedModel.type === "gemini" ? !!data.settings.geminiKey : !!data.settings.groqKey;
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col relative rounded-[3rem] overflow-hidden bg-white shadow-2xl border border-gray-100">
@@ -238,7 +252,6 @@ export const AIIntelligence: React.FC = () => {
             </div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedModel.name}</p>
           </div>
-          {/* Mode tabs */}
           <div className="hidden md:flex gap-1 p-1 bg-gray-50 rounded-2xl border border-gray-100">
             {MODES.map(mode => (
               <button key={mode.id} onClick={() => setSelectedMode(mode.id)}
@@ -251,16 +264,16 @@ export const AIIntelligence: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Model selector  stays on what user picks */}
           <select
             className="bg-gray-100 border-none rounded-xl px-3 py-2 text-xs font-bold outline-none cursor-pointer hover:bg-gray-200 transition-all max-w-[160px]"
             value={selectedModel.id}
             onChange={(e) => { const m = ALL_MODELS.find(m => m.id === e.target.value); if (m) setSelectedModel(m); }}
           >
-            <optgroup label=" Gemini (needs Gemini key)">
+            <option value="auto">✨ Auto (smart fallback)</option>
+            <optgroup label="Gemini (needs Gemini key)">
               {ALL_MODELS.filter(m => m.type === "gemini").map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </optgroup>
-            <optgroup label=" Groq FREE (works everywhere)">
+            <optgroup label="Groq FREE (works everywhere)">
               {ALL_MODELS.filter(m => m.type === "groq").map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </optgroup>
           </select>
@@ -276,14 +289,12 @@ export const AIIntelligence: React.FC = () => {
       {/* No key warning */}
       {!hasKey && (
         <div className="relative z-10 mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
-          <span className="text-amber-500 text-lg"></span>
-          <div>
-            <p className="text-xs font-black text-amber-800">
-              {selectedModel.type === "groq"
-                ? "No Groq key  get a FREE one at console.groq.com, then add in Settings  Integrations"
-                : "No Gemini key  add in Settings  Integrations, or switch to a Groq model (free)"}
-            </p>
-          </div>
+          <span className="text-amber-500 text-lg">⚠️</span>
+          <p className="text-xs font-black text-amber-800">
+            {selectedModel.type === "groq" ? "No Groq key — get FREE at console.groq.com → Settings → Integrations"
+              : selectedModel.type === "gemini" ? "No Gemini key — add in Settings → Integrations"
+              : "Add a Groq (free) or Gemini key in Settings → Integrations"}
+          </p>
         </div>
       )}
 
@@ -298,15 +309,14 @@ export const AIIntelligence: React.FC = () => {
               <h3 className="text-2xl font-black text-gray-900 tracking-tight">How can I help?</h3>
               <p className="text-gray-500 font-bold mt-2">I'm {data.settings.ai.identity.name}, your {data.settings.ai.identity.persona}.</p>
             </div>
-            {/* Model info cards */}
             <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-              <div className="bg-blue-50 rounded-2xl p-4 text-left">
-                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Gemini</p>
-                <p className="text-xs text-blue-800 font-bold">Needs Google API key. High quality TTS voice included.</p>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 text-left border border-blue-100">
+                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">✨ Auto Mode</p>
+                <p className="text-xs text-blue-800 font-bold">Picks the best model. Falls back automatically if one runs out of tokens.</p>
               </div>
-              <div className="bg-amber-50 rounded-2xl p-4 text-left">
-                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Groq FREE </p>
-                <p className="text-xs text-amber-800 font-bold">Free key at console.groq.com. Works on Vercel & everywhere.</p>
+              <div className="bg-amber-50 rounded-2xl p-4 text-left border border-amber-100">
+                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">🎙️ Voice Input</p>
+                <p className="text-xs text-amber-800 font-bold">Hold the mic button to speak. Release to send.</p>
               </div>
             </div>
           </div>
@@ -335,11 +345,9 @@ export const AIIntelligence: React.FC = () => {
                     className={cn("ml-1 p-1.5 rounded-lg transition-all opacity-100",
                       playingMsgId === msg.id ? "bg-blue-500 text-white" : "hover:text-blue-600 hover:bg-blue-50 text-gray-400")}
                     title={playingMsgId === msg.id ? "Stop" : "Speak"}>
-                    {ttsLoading === msg.id
-                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : playingMsgId === msg.id
-                        ? <Square className="w-3 h-3 fill-current" />
-                        : <Volume2 className="w-3 h-3" />}
+                    {ttsLoading === msg.id ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : playingMsgId === msg.id ? <Square className="w-3 h-3 fill-current" />
+                      : <Volume2 className="w-3 h-3" />}
                   </button>
                 )}
                 {msg.role === "assistant" && (
@@ -377,12 +385,13 @@ export const AIIntelligence: React.FC = () => {
           <input type="text" value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            placeholder={isRecording ? "Listening release to send" : `Message ${data.settings.ai.identity.name}`}
+            placeholder={isRecording ? "🎙️ Listening… release to send" : `Message ${data.settings.ai.identity.name}`}
             className="flex-1 bg-transparent px-1 py-3 outline-none font-bold text-base"
           />
           <button
             onMouseDown={startVoice} onMouseUp={stopVoice}
             onTouchStart={startVoice} onTouchEnd={stopVoice}
+            title="Hold to speak"
             className={cn("w-11 h-11 flex items-center justify-center rounded-2xl transition-all flex-shrink-0",
               isRecording ? "bg-red-500 text-white animate-pulse scale-110" : "bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600")}>
             {isRecording ? <StopCircle className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -407,7 +416,7 @@ export const AIIntelligence: React.FC = () => {
               <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-2xl shadow-blue-500/40">
                 <Brain className="text-white w-5 h-5" />
               </div>
-              <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Live  {fmt(liveTimer)}</p>
+              <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Live · {fmt(liveTimer)}</p>
             </div>
             <div className="relative z-10 flex flex-col items-center gap-8">
               <div className="w-52 h-52 rounded-full border border-white/10 flex items-center justify-center bg-slate-800/60 backdrop-blur-3xl shadow-2xl relative">
@@ -452,3 +461,5 @@ export const AIIntelligence: React.FC = () => {
     </div>
   );
 };
+
+// All models  Gemini + Groq (all verified live April 2026)

@@ -153,7 +153,7 @@ ${persona.behavior}
 
 CONTEXT:
 - User: ${profile.name || "friend"}, DOB: ${profile.dob || "unknown"}, Goals: ${profile.goals || "not set"}
-- Today: ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+- Right now: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}, ${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
 - Active tasks: ${activeTasks}
 - Habits: ${habitList}
 - Mode: ${modeKey}
