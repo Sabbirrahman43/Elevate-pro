@@ -16,16 +16,21 @@ import remarkGfm from "remark-gfm";
 
 // ─── MODELS ───────────────────────────────────────────────────
 const ALL_MODELS = [
-  { id: "auto",                                      name: "Auto",          type: "auto"   as const, dot: "bg-gradient-to-r from-blue-500 to-purple-500" },
-  { id: "gemini-2.5-flash",                          name: "Gemini Flash",  type: "gemini" as const, dot: "bg-blue-500"   },
-  { id: "gemini-2.5-pro",                            name: "Gemini Pro",    type: "gemini" as const, dot: "bg-purple-500" },
-  { id: "gemini-2.5-flash-lite",                     name: "Gemini Lite",   type: "gemini" as const, dot: "bg-indigo-400" },
-  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B", type: "groq"   as const, dot: "bg-amber-500"  },
-  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",  type: "groq"   as const, dot: "bg-amber-400"  },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout", type: "groq"   as const, dot: "bg-orange-500" },
-  { id: "openai/gpt-oss-120b",                       name: "GPT OSS 120B",  type: "groq"   as const, dot: "bg-green-500"  },
-  { id: "openai/gpt-oss-20b",                        name: "GPT OSS 20B",   type: "groq"   as const, dot: "bg-green-400"  },
-  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",    type: "groq"   as const, dot: "bg-teal-500"   },
+  { id: "auto",                                           name: "Auto",              type: "auto"   as const, dot: "bg-gradient-to-r from-blue-500 to-purple-500" },
+  { id: "gemini-2.5-flash",                              name: "Gemini 2.5 Flash",  type: "gemini" as const, dot: "bg-blue-500"   },
+  { id: "gemini-2.5-pro",                                name: "Gemini 2.5 Pro",    type: "gemini" as const, dot: "bg-purple-500" },
+  { id: "gemini-2.0-flash",                              name: "Gemini 2.0 Flash",  type: "gemini" as const, dot: "bg-indigo-500" },
+  { id: "gemini-1.5-pro",                                name: "Gemini 1.5 Pro",    type: "gemini" as const, dot: "bg-indigo-400" },
+  { id: "llama-3.3-70b-versatile",                       name: "Llama 3.3 70B",     type: "groq"   as const, dot: "bg-amber-500"  },
+  { id: "llama-3.1-8b-instant",                          name: "Llama 3.1 8B",      type: "groq"   as const, dot: "bg-amber-400"  },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct",     name: "Llama 4 Scout",     type: "groq"   as const, dot: "bg-orange-500" },
+  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick",  type: "groq"   as const, dot: "bg-orange-600" },
+  { id: "openai/gpt-oss-120b",                           name: "GPT OSS 120B",      type: "groq"   as const, dot: "bg-green-500"  },
+  { id: "openai/gpt-oss-20b",                            name: "GPT OSS 20B",       type: "groq"   as const, dot: "bg-green-400"  },
+  { id: "qwen/qwen3-32b",                                name: "Qwen 3 32B",        type: "groq"   as const, dot: "bg-teal-500"   },
+  { id: "deepseek-r1-distill-llama-70b",                 name: "DeepSeek R1 70B",   type: "groq"   as const, dot: "bg-cyan-500"   },
+  { id: "mistral-saba-24b",                              name: "Mistral Saba 24B",  type: "groq"   as const, dot: "bg-violet-500" },
+  { id: "gemma2-9b-it",                                  name: "Gemma 2 9B",        type: "groq"   as const, dot: "bg-pink-500"   },
 ];
 
 // ─── MODES ────────────────────────────────────────────────────
