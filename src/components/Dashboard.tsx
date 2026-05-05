@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "../store/useStore";
 import {
   Brain, Activity, Flame, Trophy,
-  CheckCircle2, Circle, Signal, RotateCcw, ChevronRight, Star
+  CheckCircle2, Circle, Signal, RotateCcw, ChevronRight, Star, BookOpen
 } from "lucide-react";
 import { BarChart, Bar, XAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { cn, getTodayDate } from "../lib/utils";
@@ -86,45 +86,41 @@ const WallClock: React.FC<{ dark?: boolean }> = ({ dark = true }) => {
 
 // ─── FLASHCARD WIDGET (for Sport dashboard) ───────────────────
 const FlashcardWidget: React.FC<{ data: any }> = ({ data }) => {
-  const pendingIds: string[] = data.practiceQueue || [];
-  const pending = data.tasks.filter((t: any) => pendingIds.includes(t.id));
+  const cards = data.flashcards || [];
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
-  if (pending.length === 0) return (
+  if (cards.length === 0) return (
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col items-center justify-center min-h-[160px] gap-2">
       <Star className="w-8 h-8 text-slate-200" />
-      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No flashcards queued</p>
-      <p className="text-[11px] text-slate-300 font-medium">Mark tasks done in Tasks tab to queue them</p>
+      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No flashcards yet</p>
+      <p className="text-[11px] text-slate-300 font-medium text-center">Go to AI → Learner mode and ask me to teach you something!</p>
     </div>
   );
 
-  const card = pending[idx % pending.length];
-  const total = pending.length;
+  const card = cards[idx % cards.length];
+  const total = cards.length;
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-xs font-black text-slate-400 uppercase tracking-widest">Flashcards</div>
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-emerald-500" />
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Flashcards</span>
+        </div>
         <div className="text-[10px] font-black text-slate-400">{(idx % total) + 1} / {total}</div>
       </div>
-      {/* Card */}
-      <div
-        onClick={() => setFlipped(f => !f)}
+      <div onClick={() => setFlipped(f => !f)}
         className={cn(
           "relative cursor-pointer rounded-2xl p-5 min-h-[90px] flex items-center justify-center text-center transition-all duration-300 select-none",
-          flipped
-            ? "bg-slate-900 text-white"
-            : "bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 text-slate-800"
-        )}
-      >
+          flipped ? "bg-slate-900 text-white" : "bg-gradient-to-br from-emerald-50 to-blue-50 border border-emerald-100 text-slate-800"
+        )}>
         <div>
-          {!flipped && <p className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-2">Tap to reveal topic</p>}
-          <p className="text-sm font-bold leading-snug">{card.text}</p>
-          {flipped && <p className="text-[10px] font-black text-white/40 mt-2 uppercase tracking-widest">Tap to flip back</p>}
+          {!flipped && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-2">Tap to reveal answer</p>}
+          <p className="text-sm font-bold leading-snug">{flipped ? card.back : card.front}</p>
+          <p className={cn("text-[10px] font-black mt-2 uppercase tracking-widest", flipped ? "text-emerald-400" : "text-blue-400")}>{card.topic}</p>
         </div>
       </div>
-      {/* Nav */}
       <div className="flex items-center justify-between mt-3">
         <button onClick={() => { setIdx(i => (i - 1 + total) % total); setFlipped(false); }}
           className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest px-3 py-1.5 rounded-xl hover:bg-slate-50 transition-all">

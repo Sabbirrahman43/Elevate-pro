@@ -3,7 +3,10 @@ import { supabase } from "../lib/supabase";
 import { WorkspaceData } from "../types";
 
 const DEFAULT_DATA: WorkspaceData = {
-  tasks: [], habits: [], notes: [], messages: [],
+  tasks: [], habits: [], notes: [],
+  messages: [],
+  researchMessages: [], supportMessages: [], plannerMessages: [], learnerMessages: [],
+  flashcards: [],
   offDays: ["Sat", "Sun"],
   practiceQueue: [],
   history: [],
@@ -43,6 +46,11 @@ const loadLocal = (): WorkspaceData => {
     const p = JSON.parse(s);
     return {
       ...DEFAULT_DATA, ...p,
+      researchMessages: p.researchMessages || [],
+      supportMessages:  p.supportMessages  || [],
+      plannerMessages:  p.plannerMessages  || [],
+      learnerMessages:  p.learnerMessages  || [],
+      flashcards:       p.flashcards       || [],
       practiceQueue: p.practiceQueue || [],
       history: p.history || [],
       stats: { ...DEFAULT_DATA.stats, ...(p.stats || {}) },

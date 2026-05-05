@@ -1,91 +1,248 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useStore } from "../store/useStore";
 import {
   Send, Mic, Phone, PhoneOff, Image as ImageIcon,
-  Trash2, Copy, Search, Users, Calendar,
-  Zap, Volume2, Brain, Loader2, Square, StopCircle, MicOff
+  Trash2, Copy, Volume2, Brain, Loader2, Square,
+  StopCircle, MicOff, BookOpen, ChevronRight, ChevronLeft,
+  Plus, X, RotateCcw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { chatWithGemini } from "../lib/gemini";
 import { chatWithGroq, speakText, stopSpeech } from "../lib/groq";
-import { ChatMessage } from "../types";
+import { ChatMessage, Flashcard } from "../types";
 import { cn } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+// ─── MODELS ───────────────────────────────────────────────────
 const ALL_MODELS = [
-  { id: "auto",                                      name: "Auto",         type: "auto" as const,   dot: "bg-gradient-to-r from-blue-500 to-purple-500", desc: "Smart fallback" },
-  { id: "gemini-2.5-flash",                          name: "Gemini Flash", type: "gemini" as const, dot: "bg-blue-500",   desc: "Fast · Google" },
-  { id: "gemini-2.5-pro",                            name: "Gemini Pro",   type: "gemini" as const, dot: "bg-purple-500", desc: "Smartest · Google" },
-  { id: "gemini-2.5-flash-lite",                     name: "Gemini Lite",  type: "gemini" as const, dot: "bg-indigo-400", desc: "Cheapest · Google" },
-  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",  type: "groq" as const, dot: "bg-amber-500",  desc: "Best quality · Free" },
-  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",   type: "groq" as const, dot: "bg-amber-400",  desc: "Instant · Free" },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",  type: "groq" as const, dot: "bg-orange-500", desc: "Latest Meta" },
-  { id: "openai/gpt-oss-120b",                       name: "GPT OSS 120B",   type: "groq" as const, dot: "bg-green-500",  desc: "Most powerful" },
-  { id: "openai/gpt-oss-20b",                        name: "GPT OSS 20B",    type: "groq" as const, dot: "bg-green-400",  desc: "Fast reasoning" },
-  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",     type: "groq" as const, dot: "bg-teal-500",   desc: "Multilingual" },
+  { id: "auto",                                      name: "Auto",          type: "auto"   as const, dot: "bg-gradient-to-r from-blue-500 to-purple-500" },
+  { id: "gemini-2.5-flash",                          name: "Gemini Flash",  type: "gemini" as const, dot: "bg-blue-500"   },
+  { id: "gemini-2.5-pro",                            name: "Gemini Pro",    type: "gemini" as const, dot: "bg-purple-500" },
+  { id: "gemini-2.5-flash-lite",                     name: "Gemini Lite",   type: "gemini" as const, dot: "bg-indigo-400" },
+  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B", type: "groq"   as const, dot: "bg-amber-500"  },
+  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",  type: "groq"   as const, dot: "bg-amber-400"  },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout", type: "groq"   as const, dot: "bg-orange-500" },
+  { id: "openai/gpt-oss-120b",                       name: "GPT OSS 120B",  type: "groq"   as const, dot: "bg-green-500"  },
+  { id: "openai/gpt-oss-20b",                        name: "GPT OSS 20B",   type: "groq"   as const, dot: "bg-green-400"  },
+  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",    type: "groq"   as const, dot: "bg-teal-500"   },
 ];
 
+// ─── MODES ────────────────────────────────────────────────────
 const MODES = [
-  { id: "Chat",     icon: Users,    desc: "Warm companion" },
-  { id: "Research", icon: Search,   desc: "Deep & precise" },
-  { id: "Support",  icon: Zap,      desc: "Listen & empathize" },
-  { id: "Planner",  icon: Calendar, desc: "Break into steps" },
-  { id: "Learner",  icon: Brain,    desc: "Study & learn" },
+  { id: "Chat",     emoji: "💬", label: "Chat",     color: "bg-blue-500",   desc: "Casual, warm, like a friend" },
+  { id: "Research", emoji: "🔬", label: "Research",  color: "bg-purple-500", desc: "Deep dives, sources, structured" },
+  { id: "Support",  emoji: "🫂", label: "Support",   color: "bg-rose-500",   desc: "Listen, empathize, comfort" },
+  { id: "Planner",  emoji: "📅", label: "Planner",   color: "bg-amber-500",  desc: "Plans, timelines, action steps" },
+  { id: "Learner",  emoji: "🎓", label: "Learner",   color: "bg-emerald-500",desc: "Teach, flashcards, learning paths" },
 ];
 
-// Resolve auto model: try groq first if key available, else gemini, else first available
+// ─── MODE → DATA KEY ──────────────────────────────────────────
+const modeToKey = (mode: string) => {
+  if (mode === "Research") return "researchMessages";
+  if (mode === "Support")  return "supportMessages";
+  if (mode === "Planner")  return "plannerMessages";
+  if (mode === "Learner")  return "learnerMessages";
+  return "messages";
+};
+
+// ─── AI AVATAR ────────────────────────────────────────────────
+const AIAvatar: React.FC<{ avatar?: string; name: string; size?: "sm" | "md" | "lg" }> = ({ avatar, name, size = "md" }) => {
+  const sz = size === "sm" ? "w-8 h-8 text-sm" : size === "lg" ? "w-14 h-14 text-2xl" : "w-10 h-10 text-base";
+  if (avatar) return <img src={avatar} className={cn(sz, "rounded-2xl object-cover flex-shrink-0 border-2 border-white shadow-md")} alt={name} />;
+  return (
+    <div className={cn(sz, "rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-black text-white flex-shrink-0 shadow-md border-2 border-white")}>
+      {name.charAt(0)}
+    </div>
+  );
+};
+
+// ─── FLASHCARD PANEL (Learner mode) ───────────────────────────
+const FlashcardPanel: React.FC = () => {
+  const { data, updateData } = useStore();
+  const cards = data.flashcards || [];
+  const [idx, setIdx] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  const deleteCard = (id: string) => {
+    updateData({ flashcards: data.flashcards.filter(c => c.id !== id) });
+    if (idx >= cards.length - 1) setIdx(Math.max(0, idx - 1));
+  };
+
+  if (cards.length === 0) return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
+      <div className="w-16 h-16 rounded-3xl bg-emerald-50 flex items-center justify-center">
+        <BookOpen className="w-8 h-8 text-emerald-400" />
+      </div>
+      <p className="font-black text-slate-400 text-sm">No flashcards yet</p>
+      <p className="text-xs text-slate-300 max-w-[200px]">Ask me to explain a topic in Learner mode and say "yes" when I offer to create a flashcard.</p>
+    </div>
+  );
+
+  const card = cards[idx % cards.length];
+
+  return (
+    <div className="flex flex-col h-full p-4 gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Flashcards · {cards.length}</span>
+        <button onClick={() => setShowAll(s => !s)} className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
+          {showAll ? "Show Card" : "Show All"}
+        </button>
+      </div>
+
+      {showAll ? (
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {cards.map((c, i) => (
+            <div key={c.id} onClick={() => { setIdx(i); setFlipped(false); setShowAll(false); }}
+              className="p-3 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-blue-200 transition-all flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-700 truncate">{c.front}</p>
+                <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mt-0.5">{c.topic}</p>
+              </div>
+              <button onClick={e => { e.stopPropagation(); deleteCard(c.id); }}
+                className="p-1 text-slate-300 hover:text-red-400 flex-shrink-0 transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* Card */}
+          <div onClick={() => setFlipped(f => !f)}
+            className={cn(
+              "flex-1 cursor-pointer rounded-3xl p-6 flex flex-col items-center justify-center text-center gap-3 transition-all duration-300 select-none min-h-[180px] border-2",
+              flipped
+                ? "bg-slate-900 text-white border-slate-700"
+                : "bg-gradient-to-br from-emerald-50 to-blue-50 border-emerald-200 text-slate-800"
+            )}>
+            {!flipped && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Tap to reveal answer</p>}
+            <p className="font-black text-base leading-snug">{flipped ? card.back : card.front}</p>
+            {flipped && <p className="text-[10px] text-white/40 font-black uppercase tracking-widest">Tap to flip back</p>}
+            <p className={cn("text-[10px] font-black uppercase tracking-widest mt-1", flipped ? "text-emerald-400" : "text-blue-400")}>{card.topic}</p>
+          </div>
+          {/* Nav */}
+          <div className="flex items-center gap-2">
+            <button onClick={() => { setIdx(i => (i - 1 + cards.length) % cards.length); setFlipped(false); }}
+              className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-all">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex-1 text-center text-xs font-black text-slate-400">{(idx % cards.length) + 1} / {cards.length}</div>
+            <button onClick={() => { setFlipped(false); }}
+              className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-all">
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            <button onClick={() => { setIdx(i => (i + 1) % cards.length); setFlipped(false); }}
+              className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-all">
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+          <button onClick={() => deleteCard(card.id)}
+            className="text-[10px] font-black text-red-400 hover:text-red-500 uppercase tracking-widest text-center py-1 transition-colors">
+            Delete this card
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ─── COMMON SENSE SYSTEM PROMPT ──────────────────────────────
+function buildSystemPrompt(data: any, mode: string): string {
+  const persona = data.settings.ai.identity;
+  const profile = data.settings.profile;
+  const activeTasks = data.tasks.filter((t: any) => !t.completed).map((t: any) => `- [${t.id}] ${t.text}`).join("\n") || "None";
+  const habitList = data.habits.map((h: any) => `- ${h.name}`).join("\n") || "None";
+  const now = new Date();
+  const timeStr = now.toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+
+  const modeInstructions: Record<string, string> = {
+    Chat:     `Be a real friend — warm, casual, present. React naturally. If something is funny, be funny. If something is sad, be sad with them. Don't give advice unless asked. Just be there.`,
+    Research: `Be a precise researcher. Think step by step before answering. Admit uncertainty. Use headers and bullet points for complex topics. Never make things up — if unsure, say so clearly.`,
+    Support:  `You are a compassionate listener. Your job is to make them feel heard and understood FIRST. Never jump to solutions. Reflect back what they said. Ask one gentle question at a time. Only offer advice if directly asked.`,
+    Planner:  `You are a practical strategist. Break every goal into clear, numbered steps. Ask clarifying questions before planning. Use tables and timelines when helpful. Always give deadlines and priorities.`,
+    Learner:  `You are a patient, brilliant teacher. Explain concepts like the person is smart but new to the topic. Use analogies. Check understanding. After teaching a concept, naturally offer: "Want me to create a flashcard for this?" — and if they say yes, output a flashcard JSON at the end of your message in this exact format (nothing else after it):
+FLASHCARD:{"front":"question here","back":"answer here","topic":"topic name"}`,
+  };
+
+  return `You are ${persona.name}, ${profile.name ? `${profile.name}'s` : "the user's"} ${persona.persona}.
+${persona.behavior}
+
+CONTEXT:
+- User: ${profile.name || "friend"}, Born: ${profile.dob || "unknown"}, Goals: ${profile.goals || "not set"}
+- About them: ${profile.about || "not provided"}
+- Right now: ${timeStr}
+- Their active tasks: ${activeTasks}
+- Their habits: ${habitList}
+- Current mode: ${mode}
+
+HOW TO THINK (IMPORTANT — read this carefully):
+- You have common sense. Use it. If someone says "I'm tired" they probably don't want a 10-step productivity plan — they want acknowledgment.
+- Read between the lines. Understand what they ACTUALLY mean, not just what they literally typed.
+- Be proportional. Short question = short answer. Complex question = thorough answer.
+- Have opinions. If someone asks "which is better", give a real answer with reasoning — don't just list pros and cons and leave it to them.
+- Anticipate needs. If someone asks how to do X, mention the most common mistake people make doing X.
+- If something they say doesn't make sense, gently ask for clarification instead of guessing.
+- Never be a yes-machine. If their plan has a flaw, mention it kindly but clearly.
+- Don't repeat yourself across messages. If you said something in a previous message, don't say it again.
+- NEVER use filler phrases: "Certainly!", "Great question!", "Of course!", "Absolutely!", "I understand that..."
+- Never say "As an AI" — you ARE ${persona.name}.
+- Use ${profile.name || "their name"} occasionally (not every message).
+
+MODE INSTRUCTIONS (${mode}):
+${modeInstructions[mode] || modeInstructions.Chat}
+
+For task management, append JSON at end of message (silent, no explanation):
+{"action": "create", "text": "task name"}
+{"action": "toggle", "taskId": "ID"}
+{"action": "delete", "taskId": "ID"}`;
+}
+
+// ─── AUTO MODEL RESOLVER ──────────────────────────────────────
 const resolveAutoModel = (data: any) => {
-  const hasGroq = !!data.settings.groqKey;
-  const hasGemini = !!data.settings.geminiKey;
-  if (hasGroq) return ALL_MODELS.find(m => m.id === "llama-3.3-70b-versatile")!;
-  if (hasGemini) return ALL_MODELS.find(m => m.id === "gemini-2.5-flash")!;
+  if (data.settings.groqKey) return ALL_MODELS.find(m => m.id === "llama-3.3-70b-versatile")!;
+  if (data.settings.geminiKey) return ALL_MODELS.find(m => m.id === "gemini-2.5-flash")!;
   return ALL_MODELS.find(m => m.id === "llama-3.3-70b-versatile")!;
 };
 
-function speakBrowser(text: string, voice: string, onEnd: () => void): () => void {
-  const utt = new SpeechSynthesisUtterance(text.substring(0, 500));
-  utt.onend = onEnd;
-  window.speechSynthesis.speak(utt);
-  return () => window.speechSynthesis.cancel();
-}
-
+// ─── MAIN COMPONENT ───────────────────────────────────────────
 export const AIIntelligence: React.FC = () => {
   const { data, updateData } = useStore();
-  const messagesRef = useRef<ChatMessage[]>([]);
-  useEffect(() => { messagesRef.current = data.messages || []; }, [data.messages]);
-
-  const setMessages = (setter: ChatMessage[] | ((p: ChatMessage[]) => ChatMessage[])) => {
-    const next = typeof setter === "function" ? setter(data.messages || []) : setter;
-    updateData({ messages: next });
-  };
-
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedMode, setSelectedMode] = useState("Chat");
+  const [isLive, setIsLive] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+  const [ttsLoading, setTtsLoading] = useState<string | null>(null);
+  const [liveState, setLiveState] = useState<"Listening" | "Thinking" | "Speaking">("Listening");
+  const [liveTimer, setLiveTimer] = useState(0);
+  const [showFlashcards, setShowFlashcards] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const voiceRecRef = useRef<any>(null);
+  const recognitionRef = useRef<any>(null);
+  const stopFnRef = useRef<(() => void) | null>(null);
 
-  // Model persisted in store — never resets on tab switch
+  // Model persisted in store
   const savedModelId = (data.settings as any).selectedModelId || "auto";
   const selectedModel = ALL_MODELS.find(m => m.id === savedModelId) || ALL_MODELS[0];
   const setSelectedModel = (m: typeof ALL_MODELS[0]) => {
     updateData({ settings: { ...data.settings, selectedModelId: m.id } } as any);
   };
 
-  const [selectedMode, setSelectedMode] = useState("Chat");
-  const [isLive, setIsLive] = useState(false);
-  const [bgImage, setBgImage] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const voiceRecRef = useRef<any>(null);
-  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
-  const [ttsLoading, setTtsLoading] = useState<string | null>(null);
-  const stopFnRef = useRef<(() => void) | null>(null);
-  const [liveState, setLiveState] = useState<"Listening" | "Thinking" | "Speaking">("Listening");
-  const [liveTimer, setLiveTimer] = useState(0);
-  const recognitionRef = useRef<any>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // Per-mode messages
+  const msgKey = modeToKey(selectedMode) as keyof typeof data;
+  const messages: ChatMessage[] = (data[msgKey] as ChatMessage[]) || [];
+  const setMessages = (next: ChatMessage[]) => updateData({ [msgKey]: next } as any);
+
+  const aiAvatar = data.settings.ai.identity.avatar;
+  const aiName   = data.settings.ai.identity.name;
+  const currentMode = MODES.find(m => m.id === selectedMode)!;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [data.messages]);
+  }, [messages, loading]);
 
   useEffect(() => {
     if (!isLive) { setLiveTimer(0); return; }
@@ -93,107 +250,108 @@ export const AIIntelligence: React.FC = () => {
     return () => clearInterval(t);
   }, [isLive]);
 
+  // Task action handler
   const handleTaskAction = (args: any) => {
     const { action, text, taskId } = args;
-    if (action === "create" && text) {
+    if (action === "create" && text)
       updateData({ tasks: [...data.tasks, { id: Date.now().toString(), text, completed: false, date: new Date().toISOString().split("T")[0], createdAt: Date.now() }] });
-    } else if (action === "delete" && taskId) {
+    else if (action === "delete" && taskId)
       updateData({ tasks: data.tasks.filter((t: any) => t.id !== taskId) });
-    } else if (action === "toggle" && taskId) {
+    else if (action === "toggle" && taskId)
       updateData({ tasks: data.tasks.map((t: any) => t.id === taskId ? { ...t, completed: !t.completed } : t) });
-    }
   };
 
-  const handleSpeak = async (msgId: string, text: string) => {
-    if (playingMsgId === msgId) {
-      stopFnRef.current?.(); stopSpeech();
-      setPlayingMsgId(null); setTtsLoading(null);
-      return;
-    }
-    stopFnRef.current?.(); stopSpeech();
-    setPlayingMsgId(msgId); setTtsLoading(msgId);
-    const stopFn = await speakText(text, data, () => { setPlayingMsgId(null); setTtsLoading(null); });
-    setTtsLoading(null);
-    stopFnRef.current = stopFn;
-  };
-
-  // Auto mode: try preferred model, fall back gracefully on error
-  const callWithAutoFallback = async (msgs: ChatMessage[], modeKey: string): Promise<string> => {
-    const hasGroq = !!data.settings.groqKey;
-    const hasGemini = !!data.settings.geminiKey;
-    const preferred = resolveAutoModel(data);
-
-    const tryGroq = async (modelId: string) => {
-      const result = await chatWithGroq(msgs, { ...data, _mode: modeKey } as any, modelId, handleTaskAction);
-      return result.text;
-    };
-    const tryGemini = async (modelId: string) => {
-      const result = await chatWithGemini(msgs, { ...data, _mode: modeKey } as any, modelId, undefined, handleTaskAction);
-      return result.text;
-    };
-
-    // Try preferred, then fall back to the other provider
+  // Flashcard extraction from AI response
+  const extractFlashcard = (text: string): { clean: string; card: Flashcard | null } => {
+    const match = text.match(/FLASHCARD:\s*(\{[^}]+\})/);
+    if (!match) return { clean: text, card: null };
     try {
-      if (preferred.type === "groq" && hasGroq) return await tryGroq(preferred.id);
-      if (preferred.type === "gemini" && hasGemini) return await tryGemini(preferred.id);
-    } catch (e: any) {
-      // Token/rate limit → try fallback
-      if (hasGemini && preferred.type === "groq") return await tryGemini("gemini-2.5-flash");
-      if (hasGroq && preferred.type === "gemini") return await tryGroq("llama-3.3-70b-versatile");
-      throw e;
-    }
-    if (!hasGroq && !hasGemini) throw new Error("No API key. Add a Groq (free) or Gemini key in Settings → Integrations.");
-    if (hasGroq) return await tryGroq("llama-3.3-70b-versatile");
-    return await tryGemini("gemini-2.5-flash");
+      const parsed = JSON.parse(match[1]);
+      const card: Flashcard = {
+        id: Date.now().toString(),
+        front: parsed.front || "",
+        back: parsed.back || "",
+        topic: parsed.topic || "General",
+        createdAt: Date.now(),
+      };
+      return { clean: text.replace(/FLASHCARD:\s*\{[^}]+\}/, "").trim(), card };
+    } catch { return { clean: text, card: null }; }
   };
 
+  // Send message
   const handleSend = async (overrideInput?: string) => {
     const text = (overrideInput ?? input).trim();
     if (!text || loading) return;
 
     const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: text, timestamp: Date.now() };
-    const currentMessages = [...(messagesRef.current), userMsg];
+    const currentMessages = [...messages, userMsg];
     setMessages(currentMessages);
     setInput("");
     setLoading(true);
     if (isLive) setLiveState("Thinking");
 
     try {
+      const systemPrompt = buildSystemPrompt(data, selectedMode);
       let responseText = "";
-      let usedModel = selectedModel.name;
+
+      const callGroq = async (modelId: string) => {
+        const result = await chatWithGroq(currentMessages, { ...data, _systemPrompt: systemPrompt } as any, modelId, handleTaskAction);
+        return result.text;
+      };
+      const callGemini = async (modelId: string) => {
+        const result = await chatWithGemini(currentMessages, { ...data, _systemPrompt: systemPrompt } as any, modelId, undefined, handleTaskAction);
+        return result.text;
+      };
 
       if (selectedModel.type === "auto") {
-        responseText = await callWithAutoFallback(currentMessages, selectedMode);
-        usedModel = "Auto";
+        const preferred = resolveAutoModel(data);
+        try {
+          responseText = preferred.type === "groq"
+            ? await callGroq(preferred.id)
+            : await callGemini(preferred.id);
+        } catch {
+          if (data.settings.geminiKey) responseText = await callGemini("gemini-2.5-flash");
+          else if (data.settings.groqKey) responseText = await callGroq("llama-3.3-70b-versatile");
+          else throw new Error("No API key. Add a free Groq key in Settings → Integrations.");
+        }
       } else if (selectedModel.type === "gemini") {
-        if (!data.settings.geminiKey) throw new Error("No Gemini key. Add it in Settings → Integrations, or switch to a Groq model (free).");
-        const result = await chatWithGemini(currentMessages, { ...data, _mode: selectedMode } as any, selectedModel.id, undefined, handleTaskAction);
-        responseText = result.text;
+        if (!data.settings.geminiKey) throw new Error("No Gemini key. Add in Settings → Integrations, or switch to a Groq model (free).");
+        responseText = await callGemini(selectedModel.id);
       } else {
-        if (!data.settings.groqKey) throw new Error("No Groq key. Get one free at console.groq.com → Add in Settings → Integrations.");
-        const result = await chatWithGroq(currentMessages, { ...data, _mode: selectedMode } as any, selectedModel.id, handleTaskAction);
-        responseText = result.text;
+        if (!data.settings.groqKey) throw new Error("No Groq key. Get free at console.groq.com → Settings → Integrations.");
+        responseText = await callGroq(selectedModel.id);
+      }
+
+      // Extract flashcard if Learner mode
+      let finalText = responseText;
+      if (selectedMode === "Learner") {
+        const { clean, card } = extractFlashcard(responseText);
+        finalText = clean;
+        if (card) {
+          updateData({ flashcards: [...(data.flashcards || []), card] });
+          finalText += `\n\n✅ *Flashcard created! You can review it in the flashcard panel →*`;
+        }
       }
 
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: responseText,
+        content: finalText,
         timestamp: Date.now(),
-        model: usedModel,
+        model: selectedModel.name,
       };
       setMessages([...currentMessages, aiMsg]);
 
       if (isLive) {
         setLiveState("Speaking");
-        const stopFn = speakBrowser(responseText.substring(0, 500), data.settings.ai.voice.selected, () => {
+        const stopFn = await speakText(finalText.substring(0, 500), data, () => {
           setLiveState("Listening");
-          recognitionRef.current?.start();
+          try { recognitionRef.current?.start(); } catch {}
         });
         stopFnRef.current = stopFn;
       }
     } catch (err: any) {
-      setMessages(prev => [...prev, {
+      setMessages([...currentMessages, {
         id: (Date.now() + 1).toString(), role: "assistant",
         content: `⚠️ ${err.message || "Something went wrong."}`, timestamp: Date.now(),
       }]);
@@ -203,9 +361,22 @@ export const AIIntelligence: React.FC = () => {
     }
   };
 
+  // TTS
+  const handleSpeak = async (msgId: string, text: string) => {
+    if (playingMsgId === msgId) {
+      stopFnRef.current?.(); stopSpeech(); setPlayingMsgId(null); setTtsLoading(null); return;
+    }
+    stopFnRef.current?.(); stopSpeech();
+    setPlayingMsgId(msgId); setTtsLoading(msgId);
+    const stopFn = await speakText(text, data, () => { setPlayingMsgId(null); setTtsLoading(null); });
+    setTtsLoading(null);
+    stopFnRef.current = stopFn;
+  };
+
+  // Voice input
   const startVoice = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert("Voice input needs Chrome or Edge."); return; }
+    if (!SR) { alert("Voice input works in Chrome or Edge."); return; }
     const rec = new SR();
     rec.continuous = false; rec.interimResults = true; rec.lang = "en-US";
     rec.onstart = () => setIsRecording(true);
@@ -217,6 +388,7 @@ export const AIIntelligence: React.FC = () => {
   };
   const stopVoice = () => { try { voiceRecRef.current?.stop(); } catch {} };
 
+  // Live call
   const startLive = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { alert("Live mode needs Chrome or Edge."); return; }
@@ -228,232 +400,228 @@ export const AIIntelligence: React.FC = () => {
     setIsLive(true); setLiveState("Listening");
     rec.start();
   };
-
   const stopLive = () => {
     recognitionRef.current?.stop(); recognitionRef.current = null;
     stopSpeech(); setIsLive(false); setLiveState("Listening"); setPlayingMsgId(null);
   };
 
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-  const hasKey = selectedModel.type === "auto" ? (!!data.settings.groqKey || !!data.settings.geminiKey) :
-    selectedModel.type === "gemini" ? !!data.settings.geminiKey : !!data.settings.groqKey;
+  const hasKey = selectedModel.type === "auto" ? (!!data.settings.groqKey || !!data.settings.geminiKey)
+    : selectedModel.type === "gemini" ? !!data.settings.geminiKey : !!data.settings.groqKey;
+  const flashcardCount = (data.flashcards || []).length;
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col relative rounded-[3rem] overflow-hidden bg-white shadow-2xl border border-gray-100">
-      {bgImage && <div className="absolute inset-0 z-0 opacity-15 blur-3xl scale-110 pointer-events-none" style={{ backgroundImage: `url(${bgImage})`, backgroundSize: "cover" }} />}
-
-      {/* Header */}
-      <div className="relative z-10 p-5 border-b border-gray-100 bg-white/90 backdrop-blur-md flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div>
+    <div className="h-[calc(100vh-2rem)] flex flex-col rounded-3xl overflow-hidden bg-white shadow-xl border border-gray-100">
+      {/* ── Header ── */}
+      <div className="p-4 border-b border-gray-100 bg-white flex flex-col gap-3">
+        {/* Top row */}
+        <div className="flex items-center gap-3">
+          <AIAvatar avatar={aiAvatar} name={aiName} size="md" />
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black text-gray-900">Intelligence</h2>
-              <div className={cn("w-2 h-2 rounded-full", selectedModel.dot)} />
+              <h2 className="font-black text-gray-900">{aiName}</h2>
+              <div className={cn("w-2 h-2 rounded-full flex-shrink-0", selectedModel.dot)} />
             </div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{selectedModel.name}</p>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{currentMode.emoji} {currentMode.label} · {selectedModel.name}</p>
           </div>
-          <div className="hidden md:flex gap-1 p-1 bg-gray-50 rounded-2xl border border-gray-100">
-            {MODES.map(mode => (
-              <button key={mode.id} onClick={() => setSelectedMode(mode.id)}
-                className={cn("px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all text-xs",
-                  selectedMode === mode.id ? "bg-white text-blue-600 shadow-sm font-bold" : "text-gray-400 hover:text-gray-600")}>
-                <mode.icon className="w-3.5 h-3.5" />{mode.id}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {selectedMode === "Learner" && (
+              <button onClick={() => setShowFlashcards(s => !s)}
+                className={cn("relative px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all",
+                  showFlashcards ? "bg-emerald-500 text-white" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100")}>
+                <BookOpen className="w-4 h-4" />
+                Cards
+                {flashcardCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">{flashcardCount}</span>}
               </button>
-            ))}
+            )}
+            <select
+              className="bg-gray-100 border-none rounded-xl px-2 py-2 text-xs font-bold outline-none cursor-pointer max-w-[130px]"
+              value={selectedModel.id}
+              onChange={(e) => { const m = ALL_MODELS.find(m => m.id === e.target.value); if (m) setSelectedModel(m); }}
+            >
+              <option value="auto">✨ Auto</option>
+              <optgroup label="Gemini">
+                {ALL_MODELS.filter(m => m.type === "gemini").map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </optgroup>
+              <optgroup label="Groq (Free)">
+                {ALL_MODELS.filter(m => m.type === "groq").map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </optgroup>
+            </select>
+            <button onClick={startLive} className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-90">
+              <Phone className="w-4 h-4" />
+            </button>
+            <button onClick={() => setMessages([])} className="w-9 h-9 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all">
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <select
-            className="bg-gray-100 border-none rounded-xl px-3 py-2 text-xs font-bold outline-none cursor-pointer hover:bg-gray-200 transition-all max-w-[160px]"
-            value={selectedModel.id}
-            onChange={(e) => { const m = ALL_MODELS.find(m => m.id === e.target.value); if (m) setSelectedModel(m); }}
-          >
-            <option value="auto">✨ Auto (smart fallback)</option>
-            <optgroup label="Gemini (needs Gemini key)">
-              {ALL_MODELS.filter(m => m.type === "gemini").map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </optgroup>
-            <optgroup label="Groq FREE (works everywhere)">
-              {ALL_MODELS.filter(m => m.type === "groq").map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </optgroup>
-          </select>
-          <button onClick={startLive} className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-90">
-            <Phone className="w-4 h-4" />
-          </button>
-          <button onClick={() => setMessages([])} className="w-10 h-10 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all">
-            <Trash2 className="w-4 h-4" />
-          </button>
+        {/* Mode tabs */}
+        <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-hide">
+          {MODES.map(m => (
+            <button key={m.id} onClick={() => { setSelectedMode(m.id); setShowFlashcards(false); }}
+              className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex-shrink-0",
+                selectedMode === m.id ? `${m.color} text-white shadow-sm` : "bg-gray-100 text-gray-500 hover:bg-gray-200")}>
+              <span>{m.emoji}</span>{m.label}
+              {modeToKey(m.id) !== "messages" && ((data[modeToKey(m.id) as keyof typeof data] as any[])?.length ?? 0) > 0 && (
+                <span className={cn("w-1.5 h-1.5 rounded-full", selectedMode === m.id ? "bg-white/60" : "bg-blue-400")} />
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* No key warning */}
+      {/* ── No key warning ── */}
       {!hasKey && (
-        <div className="relative z-10 mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
-          <span className="text-amber-500 text-lg">⚠️</span>
-          <p className="text-xs font-black text-amber-800">
+        <div className="mx-4 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-2">
+          <span className="text-amber-500">⚠️</span>
+          <p className="text-xs font-bold text-amber-800">
             {selectedModel.type === "groq" ? "No Groq key — get FREE at console.groq.com → Settings → Integrations"
-              : selectedModel.type === "gemini" ? "No Gemini key — add in Settings → Integrations"
+              : selectedModel.type === "gemini" ? "No Gemini key — Settings → Integrations"
               : "Add a Groq (free) or Gemini key in Settings → Integrations"}
           </p>
         </div>
       )}
 
-      {/* Messages */}
-      <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto p-6 space-y-5">
-        {(!data.messages || data.messages.length === 0) && (
-          <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto gap-6">
-            <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center">
-              <Brain className="w-10 h-10 text-blue-600 animate-pulse" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">How can I help?</h3>
-              <p className="text-gray-500 font-bold mt-2">I'm {data.settings.ai.identity.name}, your {data.settings.ai.identity.persona}.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 text-left border border-blue-100">
-                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">✨ Auto Mode</p>
-                <p className="text-xs text-blue-800 font-bold">Picks the best model. Falls back automatically if one runs out of tokens.</p>
+      {/* ── Body: messages + optional flashcard panel ── */}
+      <div className="flex-1 flex min-h-0">
+        {/* Messages */}
+        <div ref={scrollRef} className={cn("flex-1 overflow-y-auto p-4 space-y-4", showFlashcards && "lg:w-1/2")}>
+          {messages.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center gap-5 text-center py-10">
+              <AIAvatar avatar={aiAvatar} name={aiName} size="lg" />
+              <div>
+                <h3 className="text-xl font-black text-gray-900">{currentMode.emoji} {currentMode.label} mode</h3>
+                <p className="text-sm text-gray-400 mt-1 font-medium max-w-[260px]">{currentMode.desc}</p>
               </div>
-              <div className="bg-amber-50 rounded-2xl p-4 text-left border border-amber-100">
-                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">🎙️ Voice Input</p>
-                <p className="text-xs text-amber-800 font-bold">Hold the mic button to speak. Release to send.</p>
-              </div>
+              {selectedMode === "Learner" && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 max-w-[280px] text-left">
+                  <p className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-1">How flashcards work</p>
+                  <p className="text-xs text-emerald-600 leading-relaxed">Ask me to teach you anything. When I offer to create a flashcard, say "yes" and it'll be saved here and in the Dashboard.</p>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {data.messages?.map((msg) => (
-          <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-            className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
-            <div className={cn("max-w-[85%] px-5 py-4 rounded-[2rem] relative group/msg shadow-sm",
-              msg.role === "user" ? "bg-blue-600 text-white rounded-tr-sm" : "bg-gray-100 text-gray-800 rounded-tl-sm border border-gray-200")}>
-              <div className={cn(
-                "text-base leading-relaxed font-medium",
-                msg.role === "user" ? "text-white" : "text-gray-800 prose prose-sm max-w-none prose-p:my-1 prose-headings:font-black prose-table:text-xs prose-strong:text-gray-900 prose-a:text-blue-600"
-              )}>
-                {msg.role === "user"
-                  ? <p className="whitespace-pre-wrap">{msg.content}</p>
-                  : <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                }
+          {messages.map((msg) => (
+            <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              className={cn("flex gap-2.5", msg.role === "user" ? "justify-end" : "justify-start")}>
+              {msg.role === "assistant" && <AIAvatar avatar={aiAvatar} name={aiName} size="sm" />}
+              <div className={cn("max-w-[80%] px-4 py-3 rounded-3xl relative group/msg shadow-sm",
+                msg.role === "user"
+                  ? "bg-blue-600 text-white rounded-tr-sm"
+                  : "bg-gray-100 text-gray-800 rounded-tl-sm border border-gray-200")}>
+                <div className={cn(
+                  "text-sm leading-relaxed font-medium",
+                  msg.role === "assistant" && "prose prose-sm max-w-none prose-p:my-1 prose-headings:font-black prose-strong:text-gray-900 prose-table:text-xs prose-a:text-blue-600"
+                )}>
+                  {msg.role === "user"
+                    ? <p className="whitespace-pre-wrap">{msg.content}</p>
+                    : <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                  }
+                </div>
+                <div className={cn("mt-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-40",
+                  msg.role === "user" ? "justify-end text-white" : "justify-start")}>
+                  {msg.model && <span>{msg.model}</span>}
+                  <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  {msg.role === "assistant" && (<>
+                    <button onClick={() => handleSpeak(msg.id, msg.content)}
+                      className={cn("ml-1 p-1 rounded-lg transition-all opacity-100",
+                        playingMsgId === msg.id ? "bg-blue-500 text-white opacity-100" : "hover:text-blue-600 text-gray-400")}>
+                      {ttsLoading === msg.id ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : playingMsgId === msg.id ? <Square className="w-3 h-3 fill-current" />
+                        : <Volume2 className="w-3 h-3" />}
+                    </button>
+                    <button onClick={() => navigator.clipboard.writeText(msg.content)}
+                      className="p-1 rounded-lg hover:text-blue-600 text-gray-400 transition-all opacity-0 group-hover/msg:opacity-100">
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </>)}
+                </div>
               </div>
-              <div className={cn("mt-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-40",
-                msg.role === "user" ? "justify-end" : "justify-start")}>
-                {msg.model && <span>{msg.model}</span>}
-                <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                {msg.role === "assistant" && (
-                  <button onClick={() => handleSpeak(msg.id, msg.content)}
-                    className={cn("ml-1 p-1.5 rounded-lg transition-all opacity-100",
-                      playingMsgId === msg.id ? "bg-blue-500 text-white" : "hover:text-blue-600 hover:bg-blue-50 text-gray-400")}
-                    title={playingMsgId === msg.id ? "Stop" : "Speak"}>
-                    {ttsLoading === msg.id ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : playingMsgId === msg.id ? <Square className="w-3 h-3 fill-current" />
-                      : <Volume2 className="w-3 h-3" />}
-                  </button>
-                )}
-                {msg.role === "assistant" && (
-                  <button onClick={() => navigator.clipboard.writeText(msg.content)}
-                    className="p-1.5 rounded-lg hover:text-blue-600 hover:bg-blue-50 text-gray-400 transition-all opacity-0 group-hover/msg:opacity-100">
-                    <Copy className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 px-5 py-4 rounded-[2rem] rounded-tl-sm border border-gray-200">
-              <div className="flex gap-1.5">
-                {[0, 150, 300].map(d => <div key={d} className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
+          {loading && (
+            <div className="flex gap-2.5 justify-start">
+              <AIAvatar avatar={aiAvatar} name={aiName} size="sm" />
+              <div className="bg-gray-100 px-4 py-3 rounded-3xl rounded-tl-sm border border-gray-200">
+                <div className="flex gap-1.5">
+                  {[0, 150, 300].map(d => <div key={d} className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Flashcard side panel (Learner mode) */}
+        <AnimatePresence>
+          {showFlashcards && selectedMode === "Learner" && (
+            <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 280, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
+              className="border-l border-gray-100 overflow-hidden bg-gray-50 flex-shrink-0">
+              <FlashcardPanel />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Input */}
-      <div className="relative z-10 p-5 bg-white/90 backdrop-blur-md border-t border-gray-100">
-        <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-3xl p-2 focus-within:ring-4 focus-within:ring-blue-500/10 focus-within:border-blue-500 transition-all">
-          <input type="file" id="bg-upload" className="hidden" onChange={(e) => {
-            const file = e.target.files?.[0]; if (!file) return;
-            const r = new FileReader(); r.onload = (ev) => setBgImage(ev.target?.result as string); r.readAsDataURL(file);
-          }} />
-          <label htmlFor="bg-upload" className="p-2.5 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors flex-shrink-0">
-            <ImageIcon className="w-5 h-5" />
-          </label>
+      {/* ── Input ── */}
+      <div className="p-3 bg-white border-t border-gray-100">
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-3xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
           <input type="text" value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            placeholder={isRecording ? "🎙️ Listening… release to send" : `Message ${data.settings.ai.identity.name}`}
-            className="flex-1 bg-transparent px-1 py-3 outline-none font-bold text-base"
+            placeholder={isRecording ? "🎙️ Listening…" : `Message ${aiName}`}
+            className="flex-1 bg-transparent outline-none font-medium text-sm py-1.5 px-1"
           />
           <button
-            onMouseDown={startVoice} onMouseUp={stopVoice}
-            onTouchStart={startVoice} onTouchEnd={stopVoice}
+            onMouseDown={startVoice} onMouseUp={() => { stopVoice(); if (input.trim()) handleSend(); }}
+            onTouchStart={startVoice} onTouchEnd={() => { stopVoice(); setTimeout(() => { if (input.trim()) handleSend(); }, 200); }}
             title="Hold to speak"
-            className={cn("w-11 h-11 flex items-center justify-center rounded-2xl transition-all flex-shrink-0",
-              isRecording ? "bg-red-500 text-white animate-pulse scale-110" : "bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600")}>
-            {isRecording ? <StopCircle className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            className={cn("w-9 h-9 flex items-center justify-center rounded-xl transition-all flex-shrink-0",
+              isRecording ? "bg-red-500 text-white animate-pulse" : "bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600")}>
+            {isRecording ? <StopCircle className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </button>
           <button onClick={() => handleSend()} disabled={!input.trim() || loading}
-            className="w-12 h-12 bg-gray-900 text-white flex items-center justify-center rounded-2xl hover:bg-black transition-all disabled:opacity-40 flex-shrink-0 active:scale-95">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            className="w-9 h-9 bg-gray-900 text-white flex items-center justify-center rounded-xl hover:bg-black transition-all disabled:opacity-40 flex-shrink-0 active:scale-95">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
       </div>
 
-      {/* Live mode overlay */}
+      {/* ── Live call overlay ── */}
       <AnimatePresence>
         {isLive && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-between py-16 text-white overflow-hidden">
+            className="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-between py-16 text-white">
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/20 blur-[120px] rounded-full animate-pulse" />
-              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/15 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: "2s" }} />
             </div>
             <div className="relative z-10 text-center">
-              <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-2xl shadow-blue-500/40">
-                <Brain className="text-white w-5 h-5" />
-              </div>
               <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Live · {fmt(liveTimer)}</p>
             </div>
-            <div className="relative z-10 flex flex-col items-center gap-8">
-              <div className="w-52 h-52 rounded-full border border-white/10 flex items-center justify-center bg-slate-800/60 backdrop-blur-3xl shadow-2xl relative">
+            <div className="relative z-10 flex flex-col items-center gap-6">
+              <AIAvatar avatar={aiAvatar} name={aiName} size="lg" />
+              <div className="w-40 h-40 rounded-full border border-white/10 flex items-center justify-center bg-slate-800/60 backdrop-blur-3xl relative">
                 {liveState === "Listening" && <div className="absolute inset-0 rounded-full border-2 border-green-500/40 scale-125 opacity-0 animate-ping" />}
-                <div className="flex flex-col items-center gap-3">
-                  {liveState === "Listening" && <Mic className="w-16 h-16 text-green-500 animate-pulse" />}
-                  {liveState === "Thinking"  && <Loader2 className="w-16 h-16 text-amber-500 animate-spin" />}
-                  {liveState === "Speaking"  && <Volume2 className="w-16 h-16 text-blue-500 animate-bounce" />}
+                <div className="flex flex-col items-center gap-2">
+                  {liveState === "Listening" && <Mic className="w-12 h-12 text-green-500 animate-pulse" />}
+                  {liveState === "Thinking"  && <Loader2 className="w-12 h-12 text-amber-500 animate-spin" />}
+                  {liveState === "Speaking"  && <Volume2 className="w-12 h-12 text-blue-500 animate-bounce" />}
                   <span className="text-[9px] font-black uppercase tracking-widest opacity-30">{liveState}</span>
                 </div>
               </div>
               <div className="text-center">
-                <h2 className="text-4xl font-black tracking-tighter">{data.settings.ai.identity.name}</h2>
-                <p className="text-sm text-white/40 font-medium mt-1">{selectedModel.name}</p>
+                <h2 className="text-3xl font-black">{aiName}</h2>
+                <p className="text-sm text-white/40 mt-1">{selectedModel.name}</p>
               </div>
             </div>
-            <div className="relative z-10 flex items-center gap-10">
-              <div className="flex flex-col items-center gap-2">
-                <button onClick={() => { stopSpeech(); setLiveState("Listening"); try { recognitionRef.current?.start(); } catch {} }}
-                  className="w-14 h-14 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center border border-white/10 transition-all active:scale-90">
-                  <StopCircle className="w-7 h-7 text-white/60" />
-                </button>
-                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Interrupt</span>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <button onClick={stopLive}
-                  className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center shadow-2xl shadow-red-500/40 hover:scale-105 active:scale-90 transition-all border-4 border-slate-900">
-                  <PhoneOff className="w-9 h-9" />
-                </button>
-                <span className="text-[9px] font-bold text-red-400/60 uppercase tracking-[0.2em]">End Call</span>
-              </div>
-              <div className="flex flex-col items-center gap-2 opacity-20">
-                <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
-                  <MicOff className="w-7 h-7" />
-                </div>
-                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Mute</span>
-              </div>
+            <div className="relative z-10">
+              <button onClick={stopLive}
+                className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-2xl shadow-red-500/40 hover:scale-105 active:scale-90 transition-all">
+                <PhoneOff className="w-7 h-7" />
+              </button>
+              <p className="text-[9px] font-black text-red-400/60 uppercase tracking-widest text-center mt-2">End Call</p>
             </div>
           </motion.div>
         )}
@@ -461,5 +629,3 @@ export const AIIntelligence: React.FC = () => {
     </div>
   );
 };
-
-// All models  Gemini + Groq (all verified live April 2026)
