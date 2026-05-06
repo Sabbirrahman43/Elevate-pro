@@ -689,25 +689,43 @@ Rules:
 
       {/* ── QUIZ TAB ── */}
       {tab === "quiz" && (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-3 gap-3">
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-3 gap-3">
           {/* Generator */}
           {!quizSession && (
             <div className="bg-white rounded-3xl border border-slate-100 p-5 shrink-0">
-              <h3 className="font-black text-slate-900 mb-3">🎯 Generate a Quiz</h3>
+              <h3 className="font-black text-slate-900 mb-1">🎯 Generate a Quiz</h3>
+              <p className="text-xs text-slate-400 font-medium mb-3">Type any topic or pick one below</p>
               <div className="flex flex-col gap-3">
                 <input
                   value={quizTopic}
                   onChange={e => setQuizTopic(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && generateQuiz()}
-                  placeholder="Topic — e.g. Photosynthesis, React hooks, World War 2…"
+                  placeholder="e.g. Photosynthesis, React hooks, World War 2…"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-medium focus:border-blue-400 transition-all"
                 />
+                {/* Topic suggestions */}
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "Cybersecurity basics", "Network security", "Linux commands",
+                    "English grammar", "IELTS writing", "Ethical hacking",
+                    "Python basics", "Cryptography", "Web security",
+                    "SQL injection", "Firewalls & VPNs", "Cloud security",
+                  ].map(topic => (
+                    <button key={topic} onClick={() => setQuizTopic(topic)}
+                      className={cn("px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all",
+                        quizTopic === topic
+                          ? "bg-slate-900 text-white border-slate-900"
+                          : "bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-400 hover:bg-slate-100")}>
+                      {topic}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-                    <span className="text-xs font-black text-slate-500">Questions:</span>
+                  <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex-shrink-0">
+                    <span className="text-[10px] font-black text-slate-500">Qs:</span>
                     {[5, 10, 15, 20].map(n => (
                       <button key={n} onClick={() => setQuizCount(n)}
-                        className={cn("w-8 h-7 rounded-lg text-xs font-black transition-all",
+                        className={cn("w-7 h-6 rounded-lg text-xs font-black transition-all",
                           quizCount === n ? "bg-slate-900 text-white" : "text-slate-400 hover:bg-slate-200")}>
                         {n}
                       </button>
@@ -744,7 +762,7 @@ Rules:
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto">
                 <QuizView
                   session={quizSession}
                   onAnswer={handleQuizAnswer}

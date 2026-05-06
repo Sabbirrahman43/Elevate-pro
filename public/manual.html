@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Elevate Pro — User Manual</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.6; }
+  .hero { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: white; padding: 60px 24px; text-align: center; }
+  .hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 900; letter-spacing: -2px; }
+  .hero p { font-size: 1.1rem; opacity: 0.6; margin-top: 12px; max-width: 500px; margin-left: auto; margin-right: auto; }
+  .badge { display: inline-block; background: #3b82f6; color: white; padding: 4px 12px; border-radius: 99px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; }
+  .container { max-width: 800px; margin: 0 auto; padding: 40px 24px; }
+  .section { background: white; border-radius: 24px; padding: 32px; margin-bottom: 24px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .section-title { font-size: 1.4rem; font-weight: 900; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .section-sub { font-size: 0.85rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
+  .feature-card { background: #f8fafc; border-radius: 16px; padding: 20px; border: 1px solid #e2e8f0; }
+  .feature-card .icon { font-size: 1.8rem; margin-bottom: 8px; }
+  .feature-card h3 { font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .feature-card p { font-size: 0.82rem; color: #64748b; line-height: 1.5; }
+  .step { display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start; }
+  .step-num { width: 32px; height: 32px; background: #0f172a; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.85rem; flex-shrink: 0; margin-top: 2px; }
+  .step-content h4 { font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .step-content p { font-size: 0.85rem; color: #64748b; }
+  .tip { background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 0 12px 12px 0; padding: 14px 16px; margin: 16px 0; }
+  .tip strong { color: #1d4ed8; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tip p { font-size: 0.85rem; color: #1e40af; margin-top: 4px; }
+  .warn { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 0 12px 12px 0; padding: 14px 16px; margin: 16px 0; }
+  .warn strong { color: #c2410c; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .warn p { font-size: 0.85rem; color: #9a3412; margin-top: 4px; }
+  .model-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.82rem; }
+  .model-table th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; }
+  .model-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+  .model-table tr:last-child td { border-bottom: none; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+  .tag-free { background: #dcfce7; color: #166534; }
+  .tag-key { background: #dbeafe; color: #1e40af; }
+  .tag-best { background: #fef3c7; color: #92400e; }
+  .command-list { list-style: none; margin-top: 12px; }
+  .command-list li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+  .command-list li:last-child { border-bottom: none; }
+  .cmd { background: #0f172a; color: #60a5fa; padding: 2px 8px; border-radius: 6px; font-family: monospace; font-size: 0.8rem; white-space: nowrap; flex-shrink: 0; }
+  .toc { background: #f8fafc; border-radius: 16px; padding: 24px; margin-bottom: 32px; border: 1px solid #e2e8f0; }
+  .toc h3 { font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 12px; }
+  .toc a { display: block; color: #3b82f6; font-size: 0.9rem; font-weight: 600; text-decoration: none; padding: 4px 0; }
+  .toc a:hover { text-decoration: underline; }
+  .ai-examples { background: #f8fafc; border-radius: 16px; padding: 20px; margin-top: 12px; }
+  .ai-ex { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; }
+  .ai-ex:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .ai-ex .you { font-size: 0.82rem; color: #64748b; font-weight: 600; margin-bottom: 4px; }
+  .ai-ex .msg { font-size: 0.88rem; color: #0f172a; font-weight: 600; background: white; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0; }
+  .ai-ex .result { font-size: 0.78rem; color: #10b981; font-weight: 700; margin-top: 4px; }
+  footer { text-align: center; padding: 40px 24px; color: #94a3b8; font-size: 0.85rem; }
+  @media (max-width: 600px) { .feature-grid { grid-template-columns: 1fr 1fr; } .step { flex-direction: row; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="badge">User Manual · v1.0</div>
+  <h1>Elevate Pro</h1>
+  <p>Your AI-powered life operating system. Everything you need to know to get the most out of it.</p>
+</div>
+
+<div class="container">
+
+  <div class="toc">
+    <h3>Contents</h3>
+    <a href="#start">1. Getting Started</a>
+    <a href="#ai">2. AI Intelligence — The Core</a>
+    <a href="#tasks">3. Tasks</a>
+    <a href="#habits">4. Habits</a>
+    <a href="#practice">5. Practice Core (Exam + Quiz)</a>
+    <a href="#dashboard">6. Dashboard & Themes</a>
+    <a href="#models">7. AI Models Guide</a>
+    <a href="#settings">8. Settings</a>
+    <a href="#tips">9. Pro Tips</a>
+    <a href="#benefit">10. Why This App?</a>
+  </div>
+
+  <!-- GETTING STARTED -->
+  <div class="section" id="start">
+    <div class="section-title">🚀 Getting Started</div>
+    <div class="section-sub">First 5 minutes</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Set up your profile</h4>
+        <p>Go to Settings → Profile. Add your name, date of birth, goals, and a short "about you". The AI uses this to personalize every response.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Add a free Groq API key</h4>
+        <p>Go to console.groq.com → sign up free → create API key → paste in Settings → Integrations. This unlocks all AI features for free.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Add your first task</h4>
+        <p>Go to Tasks → type something you need to do today → press Enter. That's it.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <h4>Talk to your AI</h4>
+        <p>Go to Intelligence → type anything. Ask for help, plan your day, vent, learn something. The AI knows your tasks and habits and responds personally.</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <strong>💡 Tip</strong>
+      <p>The more you fill in your profile (goals, about you), the smarter and more personal the AI becomes. Spend 2 minutes on it.</p>
+    </div>
+  </div>
+
+  <!-- AI -->
+  <div class="section" id="ai">
+    <div class="section-title">🧠 AI Intelligence</div>
+    <div class="section-sub">Your personal AI companion</div>
+
+    <p style="font-size:0.9rem; color:#475569; margin-bottom:20px;">This is the heart of the app. Your AI knows your name, goals, tasks, habits, and the exact time. It's not a generic chatbot — it's yours.</p>
+
+    <h3 style="font-size:1rem; font-weight:800; margin-bottom:12px;">5 Modes — pick the right one</h3>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">💬</div>
+        <h3>Chat</h3>
+        <p>Casual conversation. Like texting a smart friend who knows you well.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔬</div>
+        <h3>Research</h3>
+        <p>Deep dives. Structured answers. Step-by-step reasoning. Great for complex topics.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🫂</div>
+        <h3>Support</h3>
+        <p>Feeling overwhelmed? Switch here. AI listens first, talks second. No unsolicited advice.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📅</div>
+        <h3>Planner</h3>
+        <p>Need a plan? AI breaks it into numbered steps, timelines, and priority lists.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🎓</div>
+        <h3>Learner</h3>
+        <p>Learning something new? AI teaches it step by step and creates flashcards for you.</p>
+      </div>
+    </div>
+
+    <h3 style="font-size:1rem; font-weight:800; margin: 24px 0 12px;">What you can say to the AI</h3>
+    <div class="ai-examples">
+      <div class="ai-ex">
+        <div class="you">You say:</div>
+        <div class="msg">"Add a task: study for IELTS tomorrow"</div>
+        <div class="result">✅ AI creates the task automatically in your Tasks list</div>
+      </div>
+      <div class="ai-ex">
+        <div class="you">You say:</div>
+        <div class="msg">"Mark my workout habit as done today"</div>
+        <div class="result">✅ AI logs your habit for today</div>
+      </div>
+      <div class="ai-ex">
+        <div class="you">You say:</div>
+        <div class="msg">"Plan my week. I have IELTS on Saturday."</div>
+        <div class="result">✅ AI creates a structured weekly plan based on your goals</div>
+      </div>
+      <div class="ai-ex">
+        <div class="you">You say:</div>
+        <div class="msg">"Teach me what a firewall is" (in Learner mode)</div>
+        <div class="result">✅ AI explains it clearly, then offers to create a flashcard</div>
+      </div>
+      <div class="ai-ex">
+        <div class="you">You say:</div>
+        <div class="msg">"I'm feeling really behind and stressed"</div>
+        <div class="result">✅ In Support mode, AI listens and helps you reframe — no instant advice</div>
+      </div>
+    </div>
+
+    <h3 style="font-size:1rem; font-weight:800; margin: 24px 0 12px;">Flashcards (Learner mode only)</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content"><h4>Switch to Learner mode</h4><p>Click the 🎓 Learner tab at the top of the AI screen.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content"><h4>Ask AI to teach you something</h4><p>"Teach me about SQL injection" or "Explain how HTTPS works".</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content"><h4>Say "yes" when AI offers a flashcard</h4><p>AI will ask "Want me to create a flashcard?" — say yes and it's saved.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content"><h4>Review cards anytime</h4><p>Click the "Cards" button in Learner mode, or go to Dashboard to see your flashcards.</p></div>
+    </div>
+
+    <h3 style="font-size:1rem; font-weight:800; margin: 24px 0 12px;">Voice Features</h3>
+    <ul class="command-list">
+      <li><span class="cmd">Hold mic button</span> Speak your message — release to send</li>
+      <li><span class="cmd">📞 Call button</span> Start live voice mode — speak freely, AI listens and responds</li>
+      <li><span class="cmd">🔊 Speaker icon</span> On any AI message — tap to hear it read aloud</li>
+    </ul>
+  </div>
+
+  <!-- TASKS -->
+  <div class="section" id="tasks">
+    <div class="section-title">✅ Tasks</div>
+    <div class="section-sub">Get things done</div>
+
+    <div class="step">
+      <div class="step-num">+</div>
+      <div class="step-content"><h4>Add a task</h4><p>Type in the input box and press Enter or the + button. Tasks are organized by date automatically.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">✓</div>
+      <div class="step-content"><h4>Complete a task</h4><p>Tap the circle next to any task to mark it done. Completed tasks move to the Practice queue so you can be examined on what you learned.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">🗑</div>
+      <div class="step-content"><h4>Delete a task</h4><p>Swipe or tap the delete icon on any task.</p></div>
+    </div>
+
+    <div class="tip">
+      <strong>💡 Pro tip</strong>
+      <p>You can ask the AI to manage your tasks: "Add a task: review cybersecurity notes" or "Delete my completed tasks". The AI does it silently in the background.</p>
+    </div>
+  </div>
+
+  <!-- HABITS -->
+  <div class="section" id="habits">
+    <div class="section-title">🔥 Habits</div>
+    <div class="section-sub">Build consistency</div>
+
+    <p style="font-size:0.9rem; color:#475569; margin-bottom:16px;">Habits are things you want to do every day (or certain days). The app tracks your streaks and shows a weekly calendar view.</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content"><h4>Add a habit</h4><p>Go to Habits (Daily Rituals) → type the habit name → press +. Examples: "Workout", "No junk food", "Study English 30 min".</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content"><h4>Log it daily</h4><p>Tap the habit card each day when you complete it. It turns green and builds your streak.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content"><h4>Track streaks</h4><p>Dashboard shows your longest streaks and consistency percentage. Try to keep the chain unbroken.</p></div>
+    </div>
+
+    <div class="tip">
+      <strong>💡 AI tip</strong>
+      <p>Say to AI: "Mark my workout habit as done" or "Add a new habit: read 20 pages". AI handles it for you.</p>
+    </div>
+  </div>
+
+  <!-- PRACTICE -->
+  <div class="section" id="practice">
+    <div class="section-title">🎓 Practice Core</div>
+    <div class="section-sub">Exam + Quiz — test your knowledge</div>
+
+    <p style="font-size:0.9rem; color:#475569; margin-bottom:20px;">Practice Core has two modes: <strong>Exam</strong> (AI examines you on completed tasks) and <strong>Quiz</strong> (click-to-answer multiple choice on any topic).</p>
+
+    <h3 style="font-size:1rem; font-weight:800; margin-bottom:12px;">📝 Exam Mode</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content"><h4>Complete a task first</h4><p>Go to Tasks → tick a task as done. It moves to the Practice queue.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content"><h4>Open Practice Core</h4><p>Click the task from the left sidebar. AI starts the exam immediately.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content"><h4>Answer the questions</h4><p>AI asks 5 questions (mix of multiple choice and written). Type your answers naturally.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content"><h4>Get graded</h4><p>AI grades you out of 100, gives feedback, and saves the result to your History tab permanently.</p></div>
+    </div>
+
+    <h3 style="font-size:1rem; font-weight:800; margin: 24px 0 12px;">🎯 Quiz Mode</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content"><h4>Click 🎯 Quiz tab</h4><p>Type any topic OR tap one of the quick suggestion buttons (Cybersecurity, IELTS, Linux, etc.).</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content"><h4>Choose question count</h4><p>Pick 5, 10, 15, or 20 questions. Click "Generate Quiz".</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content"><h4>Click A, B, C, D</h4><p>Tap the answer button. Green = correct, Red = wrong. Each wrong answer shows an explanation.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content"><h4>Click "Check Results"</h4><p>After answering all questions — see your total score and all explanations.</p></div>
+    </div>
+
+    <div class="tip">
+      <strong>💡 Results tab</strong>
+      <p>All exam results are saved in the 📊 Results tab permanently. Expand any result to re-read the full exam conversation. Delete when you're done reviewing.</p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="section" id="dashboard">
+    <div class="section-title">📊 Dashboard & Themes</div>
+    <div class="section-sub">Your daily overview</div>
+
+    <p style="font-size:0.9rem; color:#475569; margin-bottom:16px;">The dashboard shows your stats, tasks, habits, and flashcards at a glance. It has 3 themes:</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">🌌</div>
+        <h3>Glass Command</h3>
+        <p>Dark, futuristic, grid-styled. Great for night use. Shows charts and analytics prominently.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⚡</div>
+        <h3>Sport Energy</h3>
+        <p>High contrast, energetic. Shows score, tasks, habits, flashcards and AI widget. Best for motivation.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🌿</div>
+        <h3>Minimal Zen</h3>
+        <p>Clean, calm, minimal. No clutter. Great if you want focus without distraction.</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <strong>Change theme</strong>
+      <p>Go to Settings → Appearance → Dashboard Theme. Pick your favourite.</p>
+    </div>
+
+    <p style="font-size:0.9rem; color:#475569; margin-top:16px;">The <strong>wall clock</strong> shows the real time in 12-hour format with an analog clock face. The date updates automatically.</p>
+  </div>
+
+  <!-- MODELS -->
+  <div class="section" id="models">
+    <div class="section-title">🤖 AI Models Guide</div>
+    <div class="section-sub">Which model to use when</div>
+
+    <p style="font-size:0.9rem; color:#475569; margin-bottom:16px;"><strong>Auto mode</strong> is recommended for most people — it picks the best available model and switches automatically if one runs out of tokens.</p>
+
+    <table class="model-table">
+      <tr>
+        <th>Model</th>
+        <th>Best For</th>
+        <th>Cost</th>
+      </tr>
+      <tr>
+        <td><strong>✨ Auto</strong></td>
+        <td>Everything — smart fallback</td>
+        <td><span class="tag tag-free">Free</span></td>
+      </tr>
+      <tr>
+        <td>Llama 3.3 70B</td>
+        <td>Best quality free model. Daily use.</td>
+        <td><span class="tag tag-free">Free</span></td>
+      </tr>
+      <tr>
+        <td>Llama 4 Scout</td>
+        <td>PDFs, images, latest knowledge</td>
+        <td><span class="tag tag-free">Free</span></td>
+      </tr>
+      <tr>
+        <td>DeepSeek R1 70B</td>
+        <td>Complex reasoning, math, logic</td>
+        <td><span class="tag tag-free">Free</span></td>
+      </tr>
+      <tr>
+        <td>GPT OSS 120B</td>
+        <td>Most powerful free model</td>
+        <td><span class="tag tag-free">Free</span></td>
+      </tr>
+      <tr>
+        <td>Qwen 3 32B</td>
+        <td>Multilingual, reasoning tasks</td>
+        <td><span class="tag tag-free">Free</span></td>
+      </tr>
+      <tr>
+        <td>Llama 3.1 8B</td>
+        <td>Super fast replies, simple tasks</td>
+        <td><span class="tag tag-free">Free</span></td>
+      </tr>
+      <tr>
+        <td>Gemini 2.5 Pro</td>
+        <td>Smartest overall, long documents</td>
+        <td><span class="tag tag-key">Needs Key</span></td>
+      </tr>
+      <tr>
+        <td>Gemini 2.5 Flash</td>
+        <td>Fast + smart, great for daily use</td>
+        <td><span class="tag tag-key">Needs Key</span></td>
+      </tr>
+    </table>
+
+    <div class="warn" style="margin-top:16px;">
+      <strong>⚠️ Token limits</strong>
+      <p>Free Groq models have daily token limits. If you hit the limit, switch to a different Groq model or use Auto mode which switches automatically. Limits reset daily.</p>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="section" id="settings">
+    <div class="section-title">⚙️ Settings</div>
+    <div class="section-sub">Customize everything</div>
+
+    <ul class="command-list">
+      <li><span class="cmd">Profile</span> Your name, DOB, goals, about you. Fill this in — AI uses it for every response.</li>
+      <li><span class="cmd">AI Companion</span> Change your AI's name, persona, and behavior. Upload a profile picture for the AI.</li>
+      <li><span class="cmd">Integrations</span> Add your Groq key (free) and Gemini key (optional). Required for AI to work.</li>
+      <li><span class="cmd">Appearance</span> Switch dashboard theme: Glass Command, Sport Energy, or Minimal Zen.</li>
+      <li><span class="cmd">Data & Storage</span> Export your data or clear everything.</li>
+    </ul>
+  </div>
+
+  <!-- TIPS -->
+  <div class="section" id="tips">
+    <div class="section-title">💡 Pro Tips</div>
+    <div class="section-sub">Get the most out of Elevate</div>
+
+    <div class="step">
+      <div class="step-num">→</div>
+      <div class="step-content"><h4>Use voice on mobile</h4><p>Hold the mic button to speak instead of typing. Works great on phone.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">→</div>
+      <div class="step-content"><h4>Install as an app</h4><p>On phone: tap browser menu → "Add to Home Screen". Works offline like a native app.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">→</div>
+      <div class="step-content"><h4>Let AI manage your tasks</h4><p>"Add a task: practice IELTS writing", "Delete all completed tasks", "Mark my morning run task done".</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">→</div>
+      <div class="step-content"><h4>Use Learner mode for real study</h4><p>Switch to Learner mode, ask AI to teach you cybersecurity, English grammar, or anything. Build flashcards as you go.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">→</div>
+      <div class="step-content"><h4>Quiz yourself daily</h4><p>Practice → Quiz → "Cybersecurity basics" → 10 questions. 5 minutes a day builds real knowledge.</p></div>
+    </div>
+    <div class="step">
+      <div class="step-num">→</div>
+      <div class="step-content"><h4>Use Support mode when stressed</h4><p>Don't underestimate this. When you're overwhelmed, the AI in Support mode just listens and helps you think clearly. No judgment.</p></div>
+    </div>
+  </div>
+
+  <!-- WHY -->
+  <div class="section" id="benefit">
+    <div class="section-title">🌟 Why This App?</div>
+    <div class="section-sub">What makes it different</div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">🧠</div>
+        <h3>AI that knows YOU</h3>
+        <p>Not a generic chatbot. It knows your name, goals, tasks, habits, and the exact time. Every response is personal.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🆓</div>
+        <h3>Free AI models</h3>
+        <p>Groq models are completely free. Get GPT-level intelligence without paying for ChatGPT.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📚</div>
+        <h3>Study system built in</h3>
+        <p>Flashcards, quizzes, AI exams — all connected. Learn something, practice it, get tested on it.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📱</div>
+        <h3>Works as a phone app</h3>
+        <p>Install it from your browser. Works offline. No app store needed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔒</div>
+        <h3>Your data, your keys</h3>
+        <p>Your API keys stay in your browser. Nothing is shared. You control everything.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🌍</div>
+        <h3>Built for real life</h3>
+        <p>Made by someone who needed it. Not a Silicon Valley product made for someone else's life.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p>Elevate Pro · Built with purpose · <strong>Your journey, your system.</strong></p>
+</footer>
+
+</body>
+</html>

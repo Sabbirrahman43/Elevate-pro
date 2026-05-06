@@ -131,49 +131,63 @@ export async function chatWithGroq(
   onTaskAction?: (action: any) => void
 ): Promise<{ text: string }> {
   const apiKey = data.settings.groqKey;
-  if (!apiKey) throw new Error("No Groq API key. Get a free key at console.groq.com  Add it in Settings  Integrations.");
+  if (!apiKey) throw new Error("No Groq API key. Get a free key at console.groq.com → Add it in Settings → Integrations.");
 
   const persona = data.settings.ai.identity;
   const profile = data.settings.profile;
-  const activeTasks = data.tasks.filter(t => !t.completed).map(t => `- [${t.id}] ${t.text}`).join("\n") || "None";
-  const habitList = data.habits.map(h => `- ${h.name}`).join("\n") || "None";
 
-  const modeInstructions: Record<string, string> = {
-    Chat:     "Be warm, conversational, emotionally present. Like a real person who deeply cares.",
-    Research: "Be thorough. Use **headers** and bullet points. Never guess. Cite your reasoning step by step.",
-    Support:  "Listen first. Validate feelings before advising. Empathize fully. Be gentle and present.",
-    Planner:  "Create structured plans with **numbered steps**, timelines, and markdown tables. Be ruthlessly practical.",
-    Learner:  "You are a patient teacher. Explain with examples. Break concepts down. Check understanding.",
-  };
+  // Use injected system prompt from AIIntelligence if available
+  const injectedPrompt = (data as any)._systemPrompt;
+
+  const activeTasks = data.tasks.filter(t => !t.completed).map(t => `- [TASK:${t.id}] ${t.text}`).join("\n") || "None";
+  const completedTasks = data.tasks.filter(t => t.completed).slice(-5).map(t => `- [TASK:${t.id}] ${t.text}`).join("\n") || "None";
+  const habitList = data.habits.map(h => `- [HABIT:${h.id}] ${h.name}`).join("\n") || "None";
   const modeKey = (data as any)._mode || "Chat";
-  const modeInst = modeInstructions[modeKey] || modeInstructions.Chat;
 
-  const systemPrompt = `You are ${persona.name}, ${profile.name ? `${profile.name}'s` : "the user's"} ${persona.persona}.
+  const systemPrompt = injectedPrompt || `You are ${persona.name}, ${profile.name ? `${profile.name}'s` : "the user's"} ${persona.persona}.
 ${persona.behavior}
 
-CONTEXT:
-- User: ${profile.name || "friend"}, DOB: ${profile.dob || "unknown"}, Goals: ${profile.goals || "not set"}
-- Right now: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}, ${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
-- Active tasks: ${activeTasks}
-- Habits: ${habitList}
-- Mode: ${modeKey}
+RIGHT NOW: ${new Date().toLocaleString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
 
-RESPONSE STYLE:
-- Talk like a real person, not a report generator. Be warm, direct, human.
-- Keep it conversational by default. Short paragraphs, no bullet overload.
-- Only use markdown (bold, bullets, tables, headers) when it genuinely helps — e.g. a step-by-step plan, a comparison, a schedule. Not for every message.
-- Never start with "Certainly!" or "Great question!" or similar filler.
-- Never say "As an AI". You ARE ${persona.name}.
-- Reference ${profile.name || "them"} by name occasionally, not in every sentence.
-- Match energy: if they're casual, be casual. If they need a plan, structure it. If they need support, just listen first.
+USER PROFILE:
+- Name: ${profile.name || "friend"}, DOB: ${profile.dob || "unknown"}
+- Goals: ${profile.goals || "not set"}
+- About: ${profile.about || "not set"}
 
-For task management only, append JSON at end (no explanation):
-{"action": "create", "text": "task name"}
-{"action": "toggle", "taskId": "ID"}
-{"action": "delete", "taskId": "ID"}`
+THEIR DATA:
+Active tasks:
+${activeTasks}
+Recently completed:
+${completedTasks}
+Habits (track daily):
+${habitList}
 
-  // GPT OSS models need reasoning_format hidden for tool use
-  const isReasoning = modelId.includes("gpt-oss") || modelId.includes("qwen3");
+HOW TO THINK:
+- Read between the lines. Understand what they ACTUALLY mean.
+- Be proportional: short question = short answer. Complex = thorough.
+- Have real opinions. Don't just list pros and cons.
+- Never say "Certainly!", "Great question!", "As an AI".
+- Use their name occasionally, not every message.
+- Match their energy.
+
+YOU CAN MANAGE TASKS AND HABITS. When user asks, append silent JSON at end:
+
+For tasks:
+{"action":"task_create","text":"task description"}
+{"action":"task_toggle","taskId":"TASK_ID_HERE"}
+{"action":"task_delete","taskId":"TASK_ID_HERE"}
+
+For habits:
+{"action":"habit_create","name":"habit name"}
+{"action":"habit_delete","habitId":"HABIT_ID_HERE"}
+{"action":"habit_log","habitId":"HABIT_ID_HERE"}
+
+IMPORTANT: Always use the exact IDs shown above (TASK:xxx or HABIT:xxx). Strip the TASK:/HABIT: prefix when using in JSON.
+No explanation about the JSON. Just append it silently at end of message.`;
+
+  // Models that need reasoning_format hidden
+  const needsReasoning = modelId.includes("gpt-oss") || modelId.includes("qwen3") || modelId.includes("deepseek-r1");
+
   const body: any = {
     model: modelId,
     messages: [
@@ -183,7 +197,7 @@ For task management only, append JSON at end (no explanation):
     max_tokens: 1024,
     temperature: 0.85,
   };
-  if (isReasoning) body.reasoning_format = "hidden";
+  if (needsReasoning) body.reasoning_format = "hidden";
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -194,20 +208,36 @@ For task management only, append JSON at end (no explanation):
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     const msg = err?.error?.message || response.statusText;
-    if (response.status === 401) throw new Error("Invalid Groq API key. Check Settings  Integrations.");
-    if (response.status === 429) throw new Error("Groq rate limit. Wait a moment and try again.");
-    if (msg?.includes("decommissioned")) throw new Error(`Model ${modelId} was removed by Groq. Please select a different model.`);
+    if (response.status === 401) throw new Error("Invalid Groq API key. Check Settings → Integrations.");
+    if (response.status === 429) {
+      // Extract reset time if available
+      const resetSecs = err?.error?.headers?.["x-ratelimit-reset-requests"] || "60";
+      throw new Error(`Rate limit reached. Resets in ~${resetSecs}s. Switch to Auto mode or try another model.`);
+    }
+    if (msg?.includes("decommissioned") || msg?.includes("does not exist")) {
+      throw new Error(`Model "${modelId}" is no longer available. Please select a different model.`);
+    }
     throw new Error(`Groq error: ${msg}`);
   }
 
   const json = await response.json();
   let text = json.choices?.[0]?.message?.content || "";
 
+  // Parse and handle ALL action types
   if (onTaskAction) {
-    const taskRegex = /\{[^{}]*"action"\s*:\s*"(create|delete|toggle)"[^{}]*\}/g;
-    const matches = text.match(taskRegex) || [];
-    matches.forEach(block => { try { onTaskAction(JSON.parse(block)); } catch {} });
-    text = text.replace(taskRegex, "").trim();
+    const actionRegex = /\{[^{}]*"action"\s*:\s*"(task_create|task_toggle|task_delete|habit_create|habit_delete|habit_log|create|toggle|delete)"[^{}]*\}/g;
+    const matches = text.match(actionRegex) || [];
+    matches.forEach(block => {
+      try {
+        const parsed = JSON.parse(block);
+        // Normalize old action names
+        if (parsed.action === "create") parsed.action = "task_create";
+        if (parsed.action === "toggle") parsed.action = "task_toggle";
+        if (parsed.action === "delete" && parsed.taskId) parsed.action = "task_delete";
+        onTaskAction(parsed);
+      } catch {}
+    });
+    text = text.replace(actionRegex, "").trim();
   }
 
   return { text };

@@ -255,15 +255,24 @@ export const AIIntelligence: React.FC = () => {
     return () => clearInterval(t);
   }, [isLive]);
 
-  // Task action handler
+  // Task + Habit action handler
   const handleTaskAction = (args: any) => {
-    const { action, text, taskId } = args;
-    if (action === "create" && text)
-      updateData({ tasks: [...data.tasks, { id: Date.now().toString(), text, completed: false, date: new Date().toISOString().split("T")[0], createdAt: Date.now() }] });
-    else if (action === "delete" && taskId)
+    const { action, text, name, taskId, habitId } = args;
+    const today = new Date().toISOString().split("T")[0];
+    // Tasks
+    if ((action === "task_create" || action === "create") && text)
+      updateData({ tasks: [...data.tasks, { id: Date.now().toString(), text, completed: false, date: today, createdAt: Date.now() }] });
+    else if ((action === "task_delete" || action === "delete") && taskId)
       updateData({ tasks: data.tasks.filter((t: any) => t.id !== taskId) });
-    else if (action === "toggle" && taskId)
+    else if ((action === "task_toggle" || action === "toggle") && taskId)
       updateData({ tasks: data.tasks.map((t: any) => t.id === taskId ? { ...t, completed: !t.completed } : t) });
+    // Habits
+    else if (action === "habit_create" && name)
+      updateData({ habits: [...data.habits, { id: Date.now().toString(), name, logs: {}, createdAt: Date.now() }] });
+    else if (action === "habit_delete" && habitId)
+      updateData({ habits: data.habits.filter((h: any) => h.id !== habitId) });
+    else if (action === "habit_log" && habitId)
+      updateData({ habits: data.habits.map((h: any) => h.id === habitId ? { ...h, logs: { ...h.logs, [today]: !h.logs?.[today] } } : h) });
   };
 
   // Flashcard extraction from AI response
