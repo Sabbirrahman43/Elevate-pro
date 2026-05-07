@@ -11,6 +11,97 @@ export const GROQ_MODELS = [
   { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",      desc: "Reasoning  Multilingual",  speed: "Fast"    },
 ];
 
+// ─── ELEVENLABS STREAMING TTS ────────────────────────────────
+// Default backup voice IDs
+export const ELEVEN_VOICES = {
+  theo:   "UmQN7jS1Ee8B1czsUtQh",
+  samara: "19STyYD15bswVz51nqLf",
+  emma:   "nDJIICjR9zfJExIFeSCN",
+};
+
+export async function elevenLabsStream(
+  text: string,
+  apiKey: string,
+  voiceId: string,
+  onStart: () => void,
+  onEnd: () => void
+): Promise<() => void> {
+  const clean = text.replace(/[#*`_~[\]()>{}]/g, "").replace(/\n+/g, " ").substring(0, 500);
+  let stopped = false;
+  let audioCtx: AudioContext | null = null;
+  let sourceNode: AudioBufferSourceNode | null = null;
+
+  try {
+    const res = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "xi-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          text: clean,
+          model_id: "eleven_turbo_v2_5",   // fastest model
+          voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 1.0 },
+          output_format: "mp3_44100_128",
+        }),
+      }
+    );
+
+    if (!res.ok || !res.body) return () => {};
+
+    // Stream: collect chunks and play as soon as enough arrives
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+    let started = false;
+
+    const pump = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done || stopped) break;
+        chunks.push(value);
+        totalBytes += value.length;
+
+        // Start playing after ~32KB (about 0.5s of audio) — instant feel
+        if (!started && totalBytes > 32_000) {
+          started = true;
+          const combined = new Uint8Array(totalBytes);
+          let offset = 0;
+          for (const c of chunks) { combined.set(c, offset); offset += c.length; }
+          onStart();
+          playMp3Blob(combined, () => onEnd());
+        }
+      }
+      // If stream ended before 32KB threshold (short text) — play what we have
+      if (!started && totalBytes > 0) {
+        const combined = new Uint8Array(totalBytes);
+        let offset = 0;
+        for (const c of chunks) { combined.set(c, offset); offset += c.length; }
+        onStart();
+        playMp3Blob(combined, () => onEnd());
+      }
+    };
+    pump().catch(() => onEnd());
+  } catch {
+    onEnd();
+  }
+
+  return () => { stopped = true; stopSpeech(); };
+}
+
+function playMp3Blob(data: Uint8Array, onEnd: () => void) {
+  stopSpeech();
+  const blob = new Blob([data], { type: "audio/mpeg" });
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  _currentAudio = audio;
+  audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; onEnd(); };
+  audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; onEnd(); };
+  audio.play().catch(() => onEnd());
+}
+
 // Groq TTS  Orpheus (real human-quality voice, works everywhere)
 export const GROQ_TTS_MODEL = "canopylabs/orpheus-v1-english";
 // Groq STT  Whisper Turbo (faster than browser speech recognition)
@@ -65,16 +156,24 @@ export async function playAudioBuffer(buffer: ArrayBuffer): Promise<void> {
   });
 }
 
-//  SPEAK: Groq TTS first (real voice), browser fallback 
+//  SPEAK: ElevenLabs streaming → Groq TTS → Gemini → Browser fallback
 export async function speakText(
   text: string,
   data: WorkspaceData,
   onStop?: () => void
 ): Promise<() => void> {
-  const groqKey = data.settings.groqKey;
   const clean = text.replace(/[#*`_~[\]()>{}]/g, "").replace(/\n+/g, " ").substring(0, 500);
+  const elevenKey  = (data.settings as any).elevenLabsKey;
+  const voiceId    = (data.settings as any).elevenLabsVoiceId || ELEVEN_VOICES.theo;
+  const groqKey    = data.settings.groqKey;
+  const geminiKey  = data.settings.geminiKey;
 
-  // 1. Try Groq Orpheus TTS (best quality, works everywhere)
+  // 1. ElevenLabs streaming — fastest, best quality, user's own key
+  if (elevenKey) {
+    return elevenLabsStream(clean, elevenKey, voiceId, () => {}, () => onStop?.());
+  }
+
+  // 2. Groq Orpheus TTS
   if (groqKey) {
     const buffer = await groqTTS(clean, groqKey);
     if (buffer) {
@@ -83,8 +182,7 @@ export async function speakText(
     }
   }
 
-  // 2. Try Gemini TTS (if key available)
-  const geminiKey = data.settings.geminiKey;
+  // 3. Gemini TTS
   if (geminiKey) {
     try {
       const { generateSpeech, playBase64PCM, stopCurrentAudio } = await import("./gemini");
@@ -96,7 +194,7 @@ export async function speakText(
     } catch {}
   }
 
-  // 3. Browser speech  instant fallback
+  // 4. Browser speech — always works, no keys needed
   return speakBrowser(clean, data.settings.ai.voice.selected, onStop);
 }
 

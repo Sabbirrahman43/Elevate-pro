@@ -703,22 +703,48 @@ Rules:
                   placeholder="e.g. Photosynthesis, React hooks, World War 2…"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-medium focus:border-blue-400 transition-all"
                 />
-                {/* Topic suggestions */}
+                {/* Smart topic suggestions from user goals + knowledge topics */}
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    "Cybersecurity basics", "Network security", "Linux commands",
-                    "English grammar", "IELTS writing", "Ethical hacking",
-                    "Python basics", "Cryptography", "Web security",
-                    "SQL injection", "Firewalls & VPNs", "Cloud security",
-                  ].map(topic => (
-                    <button key={topic} onClick={() => setQuizTopic(topic)}
-                      className={cn("px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all",
-                        quizTopic === topic
-                          ? "bg-slate-900 text-white border-slate-900"
-                          : "bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-400 hover:bg-slate-100")}>
-                      {topic}
-                    </button>
-                  ))}
+                  {(() => {
+                    // Knowledge-only keywords — filter out physical/lifestyle tasks
+                    const physicalWords = ["workout","pushup","push-up","exercise","gym","run","walk","sleep","eat","food","cook","clean","shower","drink","water","sugar","junk","weight","diet"];
+                    const isKnowledgeTopic = (t: string) => !physicalWords.some(w => t.toLowerCase().includes(w));
+
+                    // Pull topics from user's completed tasks (knowledge-based only)
+                    const taskTopics = data.tasks
+                      .filter(t => t.completed && isKnowledgeTopic(t.text) && t.text.length > 5 && t.text.length < 60)
+                      .slice(-4)
+                      .map(t => t.text);
+
+                    // Pull from profile goals
+                    const goalTopics: string[] = [];
+                    const goals = data.settings?.profile?.goals || "";
+                    if (goals.toLowerCase().includes("cyber")) goalTopics.push("Cybersecurity basics", "Network security", "Ethical hacking");
+                    if (goals.toLowerCase().includes("ielts") || goals.toLowerCase().includes("english")) goalTopics.push("IELTS writing task 2", "English grammar", "Academic vocabulary");
+                    if (goals.toLowerCase().includes("python") || goals.toLowerCase().includes("code")) goalTopics.push("Python basics", "Web development");
+                    if (goals.toLowerCase().includes("math")) goalTopics.push("Mathematics fundamentals");
+
+                    // Default knowledge topics always available
+                    const defaults = [
+                      "Cybersecurity basics", "Network security", "Linux commands",
+                      "Ethical hacking", "SQL injection", "Cryptography",
+                      "Web security", "Firewalls & VPNs", "IELTS writing",
+                      "English grammar", "Cloud security", "Python basics",
+                    ];
+
+                    // Merge: user task topics first, then goal topics, then defaults (no duplicates)
+                    const all = [...new Set([...taskTopics, ...goalTopics, ...defaults])].slice(0, 14);
+
+                    return all.map(topic => (
+                      <button key={topic} onClick={() => setQuizTopic(topic)}
+                        className={cn("px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all",
+                          quizTopic === topic
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-400 hover:bg-slate-100")}>
+                        {topic}
+                      </button>
+                    ));
+                  })()}
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex-shrink-0">
