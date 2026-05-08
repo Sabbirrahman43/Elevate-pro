@@ -15,22 +15,17 @@ import { cn } from "../lib/utils";
 
 // ─── ALL MODELS (updated full list) ──────────────────────────
 const MODELS = [
-  // Groq FREE
-  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",   type: "groq",   tag: "FREE" },
-  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",    type: "groq",   tag: "FREE·FAST" },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",   type: "groq",   tag: "FREE·PDF" },
-  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick", type: "groq", tag: "FREE·VISION" },
-  { id: "openai/gpt-oss-120b",                       name: "GPT OSS 120B",    type: "groq",   tag: "FREE·SMART" },
-  { id: "openai/gpt-oss-20b",                        name: "GPT OSS 20B",     type: "groq",   tag: "FREE" },
-  { id: "qwen/qwen3-32b",                            name: "Qwen 3 32B",      type: "groq",   tag: "FREE·REASON" },
-  { id: "mistral-saba-24b",                          name: "Mistral Saba",    type: "groq",   tag: "FREE" },
-  { id: "gemma2-9b-it",                              name: "Gemma 2 9B",      type: "groq",   tag: "FREE" },
-  { id: "deepseek-r1-distill-llama-70b",             name: "DeepSeek R1 70B", type: "groq",   tag: "FREE·REASON" },
+  // Groq FREE — confirmed working May 2026
+  { id: "llama-3.3-70b-versatile",                       name: "Llama 3.3 70B",    type: "groq",   tag: "FREE·BEST" },
+  { id: "llama-3.1-8b-instant",                          name: "Llama 3.1 8B",     type: "groq",   tag: "FREE·FAST" },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct",     name: "Llama 4 Scout",    type: "groq",   tag: "FREE·PDF" },
+  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick", type: "groq",   tag: "FREE·VISION" },
+  { id: "openai/gpt-oss-120b",                           name: "GPT OSS 120B",     type: "groq",   tag: "FREE·SMART" },
+  { id: "openai/gpt-oss-20b",                            name: "GPT OSS 20B",      type: "groq",   tag: "FREE·FAST" },
   // Gemini (needs key)
-  { id: "gemini-2.5-flash",                          name: "Gemini 2.5 Flash", type: "gemini", tag: "KEY·FAST" },
-  { id: "gemini-2.5-pro",                            name: "Gemini 2.5 Pro",   type: "gemini", tag: "KEY·BEST" },
-  { id: "gemini-2.0-flash",                          name: "Gemini 2.0 Flash", type: "gemini", tag: "KEY·PDF" },
-  { id: "gemini-1.5-pro",                            name: "Gemini 1.5 Pro",   type: "gemini", tag: "KEY·LONG" },
+  { id: "gemini-2.5-flash",                              name: "Gemini 2.5 Flash", type: "gemini", tag: "KEY·FAST" },
+  { id: "gemini-2.5-pro",                                name: "Gemini 2.5 Pro",   type: "gemini", tag: "KEY·BEST" },
+  { id: "gemini-2.0-flash",                              name: "Gemini 2.0 Flash", type: "gemini", tag: "KEY·PDF" },
 ];
 
 // ─── QUIZ TYPES ───────────────────────────────────────────────
@@ -158,7 +153,7 @@ const QuizView: React.FC<{
   const finished = session.score !== null;
 
   return (
-    <div className="flex flex-col gap-4 p-4 overflow-y-auto h-full">
+    <div className="flex flex-col gap-4 p-4">
       {/* Topic + score */}
       <div className="flex items-center justify-between shrink-0">
         <div>
@@ -768,7 +763,7 @@ Rules:
 
           {/* Quiz */}
           {quizSession ? (
-            <div className="flex-1 min-h-0 overflow-hidden bg-white rounded-3xl border border-slate-100">
+            <div className="flex-1 overflow-y-auto bg-white rounded-3xl border border-slate-100">
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
                 <div>
                   <p className="font-black text-sm text-slate-900">🎯 {quizSession.topic}</p>
@@ -788,15 +783,13 @@ Rules:
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto">
-                <QuizView
+              <QuizView
                   session={quizSession}
                   onAnswer={handleQuizAnswer}
                   onReveal={handleReveal}
                   onFinish={handleFinishQuiz}
                   onReset={() => setQuizSession(null)}
                 />
-              </div>
             </div>
           ) : quizLoading ? (
             <div className="flex-1 flex items-center justify-center">
