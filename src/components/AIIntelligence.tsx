@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useStore } from "../store/useStore";
+import { useNav } from "../App";
 import {
   Send, Mic, Phone, PhoneOff, Image as ImageIcon,
   Trash2, Copy, Volume2, Brain, Loader2, Square,
   StopCircle, MicOff, BookOpen, ChevronRight, ChevronLeft,
-  Plus, X, RotateCcw
+  Plus, X, RotateCcw, Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { chatWithGemini } from "../lib/gemini";
@@ -207,14 +208,34 @@ Tone: Warm, real, casual. Like a trusted friend who actually listens.
 
     Research: `${BASE}
 
-MODE: RESEARCH ANALYST
-Tone: Sharp, precise, confident where warranted, honest about uncertainty.
-- Think step by step BEFORE giving the final answer.
-- Use real structure: headers, bullets, tables — but only when it genuinely helps.
-- NEVER make up facts, statistics, or sources. If you're not sure → say "I'm not certain, but..." or "You should verify this."
-- Give the most accurate answer you can based on real knowledge.
-- Acknowledge different expert perspectives on contested topics.
-- End complex answers with: "What would you like to dig deeper on?"`,
+MODE: RESEARCH ANALYST — STRICT NO-GUESSING PROTOCOL
+
+You are a rigorous research analyst. Your responses must meet these standards:
+
+WHAT YOU MUST DO:
+- Think through the topic systematically before answering
+- Clearly separate FACTS (things you know with high confidence) from UNCERTAIN (things you're less sure about)
+- Use this format when uncertain: "I believe X, but you should verify this" or "Based on what I know, X — confirm with [source type]"
+- Structure complex answers with headers and bullet points
+- When asked about statistics, studies, or specific data: give what you know but flag "verify the exact numbers"
+- For technical topics: be precise with terminology. Don't simplify to the point of being wrong.
+- For current events or recent data: clearly state your knowledge cutoff and that the user should check current sources
+
+WHAT YOU MUST NEVER DO:
+- Never present uncertain information as definite fact
+- Never make up statistics, dates, names, or specific figures
+- Never guess at URLs, studies, or paper citations — if you can't recall exactly, say "search for [description] to find the source"
+- Never say "studies show" without being able to say which kind of studies
+- Never fill gaps in your knowledge with plausible-sounding fiction
+
+WHEN YOU DON'T KNOW:
+Say exactly: "I don't have reliable information on [specific aspect]. For accurate data, check [type of source — official docs, academic papers, government sites, etc.]."
+
+FORMAT:
+- Use **bold** for key terms and findings
+- Use numbered lists for steps/processes
+- Use tables for comparisons
+- End with: "Sources to verify: [describe what type of source to look for]"`,
 
     Support: `${BASE}
 
@@ -275,6 +296,7 @@ const resolveAutoModel = (data: any) => {
 // ─── MAIN COMPONENT ───────────────────────────────────────────
 export const AIIntelligence: React.FC = () => {
   const { data, updateData } = useStore();
+  const { setActiveTab, setPracticeQuizTopic } = useNav();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedMode, setSelectedMode] = useState("Chat");
@@ -289,6 +311,31 @@ export const AIIntelligence: React.FC = () => {
   const voiceRecRef = useRef<any>(null);
   const recognitionRef = useRef<any>(null);
   const stopFnRef = useRef<(() => void) | null>(null);
+
+  // Extract current learning topic from last few messages
+  const extractCurrentTopic = (): string => {
+    const msgs = (data as any)[modeToKey("Learner")] as any[] || [];
+    // Look at last AI message for topic
+    const lastAI = [...msgs].reverse().find((m: any) => m.role === "assistant");
+    const lastUser = [...msgs].reverse().find((m: any) => m.role === "user");
+    if (lastAI?.content) {
+      // Try to extract topic from flashcard if recently created
+      const fc = (data.flashcards || []).slice(-1)[0];
+      if (fc) return fc.topic;
+      // Extract first meaningful phrase from last user message
+      if (lastUser?.content) {
+        const clean = lastUser.content.replace(/teach me|explain|what is|how does|tell me about/gi, "").trim();
+        if (clean.length > 3 && clean.length < 60) return clean;
+      }
+    }
+    return "Current Learning Topic";
+  };
+
+  const handleMakeQuiz = () => {
+    const topic = extractCurrentTopic();
+    setPracticeQuizTopic(topic);
+    setActiveTab("Practice");
+  };
 
   // Model persisted in store
   const savedModelId = (data.settings as any).selectedModelId || "auto";
@@ -501,13 +548,20 @@ export const AIIntelligence: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {selectedMode === "Learner" && (
-              <button onClick={() => setShowFlashcards(s => !s)}
-                className={cn("relative px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all",
-                  showFlashcards ? "bg-emerald-500 text-white" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100")}>
-                <BookOpen className="w-4 h-4" />
-                Cards
-                {flashcardCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">{flashcardCount}</span>}
-              </button>
+              <>
+                <button onClick={() => setShowFlashcards(s => !s)}
+                  className={cn("relative px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all",
+                    showFlashcards ? "bg-emerald-500 text-white" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100")}>
+                  <BookOpen className="w-4 h-4" />
+                  Cards
+                  {flashcardCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">{flashcardCount}</span>}
+                </button>
+                <button onClick={handleMakeQuiz}
+                  className="relative px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200">
+                  <Zap className="w-4 h-4" />
+                  Make Quiz
+                </button>
+              </>
             )}
             <select
               className="bg-gray-100 border-none rounded-xl px-2 py-2 text-xs font-bold outline-none cursor-pointer max-w-[130px]"

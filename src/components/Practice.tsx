@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useStore } from "../store/useStore";
+import { useNav } from "../App";
 import {
   Brain, GraduationCap, ArrowRight, CheckCircle2,
   Loader2, RefreshCw, Star, Image as ImageIcon, X,
@@ -289,6 +290,7 @@ const ExamResultCard: React.FC<{ result: ExamResult; onDelete: () => void }> = (
 // ─── MAIN COMPONENT ──────────────────────────────────────────
 export const Practice: React.FC = () => {
   const { data, updateData } = useStore();
+  const { practiceQuizTopic, setPracticeQuizTopic } = useNav();
   const [tab, setTab] = useState<"exam" | "quiz" | "history">("exam");
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -314,6 +316,21 @@ export const Practice: React.FC = () => {
   const stopFnRef = useRef<(() => void) | null>(null);
 
   const pendingTasks = data.tasks.filter(t => data.practiceQueue.includes(t.id));
+
+  // Auto-trigger quiz from Learner AI mode
+  useEffect(() => {
+    if (practiceQuizTopic) {
+      setTab("quiz");
+      setQuizTopic(practiceQuizTopic);
+      setQuizSession(null);
+      setPracticeQuizTopic(null);
+      // Auto-generate after a short delay
+      setTimeout(() => {
+        setQuizLoading(true);
+        generateQuizForTopic(practiceQuizTopic, 10);
+      }, 400);
+    }
+  }, [practiceQuizTopic]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -406,57 +423,49 @@ MASTERED: ${task.id}`;
   };
 
   // ── GENERATE QUIZ ──────────────────────────────────────────
-  const generateQuiz = async () => {
-    const topic = quizTopic.trim();
-    if (!topic) return;
+  // Core quiz generator — callable with topic directly (from AI Learner mode)
+  const generateQuizForTopic = async (topic: string, count: number) => {
     setQuizLoading(true);
     setQuizSession(null);
-    try {
-      const prompt = `Generate exactly ${quizCount} multiple choice quiz questions about: "${topic}".
+    const prompt = `Generate exactly ${count} multiple choice quiz questions about: "${topic}".
 
-Return ONLY a JSON array, no other text, in this format:
+Return ONLY a JSON array, no other text:
 [
   {
     "question": "question text here?",
     "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
     "correct": 0,
-    "explanation": "Brief explanation of why the answer is correct.",
+    "explanation": "Why this answer is correct — teach something specific.",
     "topic": "${topic}"
   }
 ]
 
 Rules:
-- correct is the INDEX (0=A, 1=B, 2=C, 3=D)
-- Make questions educational and varied (concepts, applications, definitions)
-- Explanations should be helpful and teach something
-- All 4 options must be plausible
+- correct is INDEX (0=A, 1=B, 2=C, 3=D)
+- Vary question types: definitions, applications, comparisons, scenarios
+- All 4 options must be plausible (no obvious wrong answers)
+- Explanations must be educational, not just "because X is correct"
 - Return ONLY the JSON array, nothing else`;
 
+    try {
       const msgs: ChatMessage[] = [{ id: "1", role: "user", content: prompt, timestamp: Date.now() }];
-      const text = await callAI(msgs, "You are a quiz generator. Return only valid JSON arrays.", selectedModel, data);
-
-      // Parse JSON
+      const text = await callAI(msgs, "You are a quiz generator. Return only valid JSON arrays, no markdown.", selectedModel, data);
       let questions: QuizQuestion[] = [];
       try {
         const match = text.match(/\[[\s\S]*\]/);
         if (match) questions = JSON.parse(match[0]).map((q: any, i: number) => ({ ...q, id: `q${i}`, topic }));
-      } catch {
-        questions = parseQuiz(text, topic);
-      }
-
-      if (questions.length === 0) throw new Error("Could not parse quiz. Try a different topic or model.");
-
-      setQuizSession({
-        questions,
-        answers: new Array(questions.length).fill(null),
-        revealed: new Array(questions.length).fill(false),
-        score: null,
-        topic,
-        createdAt: Date.now(),
-      });
+      } catch { questions = parseQuiz(text, topic); }
+      if (questions.length === 0) throw new Error("Could not parse quiz. Try a different model.");
+      setQuizSession({ questions, answers: new Array(questions.length).fill(null), revealed: new Array(questions.length).fill(false), score: null, topic, createdAt: Date.now() });
     } catch (err: any) {
-      alert(`Quiz generation failed: ${err.message}`);
+      alert(`Quiz failed: ${err.message}`);
     } finally { setQuizLoading(false); }
+  };
+
+  const generateQuiz = async () => {
+    const topic = quizTopic.trim();
+    if (!topic) return;
+    await generateQuizForTopic(topic, quizCount);
   };
 
   const handleQuizAnswer = (qIdx: number, aIdx: number) => {
@@ -481,9 +490,37 @@ Rules:
   const handleFinishQuiz = () => {
     if (!quizSession) return;
     let correct = 0;
-    quizSession.questions.forEach((q, i) => { if (quizSession.answers[i] === q.correct) correct++; });
+    const wrongTopics: string[] = [];
+    quizSession.questions.forEach((q, i) => {
+      if (quizSession.answers[i] === q.correct) correct++;
+      else wrongTopics.push(q.question.substring(0, 60));
+    });
     const score = Math.round((correct / quizSession.questions.length) * 100);
-    setQuizSession(prev => prev ? { ...prev, score, revealed: prev.revealed.map(() => true) } : prev);
+    const finalSession = { ...quizSession, score, revealed: quizSession.revealed.map(() => true) };
+    setQuizSession(finalSession);
+
+    // Save to exam results history
+    const result: ExamResult = {
+      id: Date.now().toString(),
+      taskText: `Quiz: ${quizSession.topic}`,
+      score,
+      messages: [],
+      completedAt: Date.now(),
+      duration: Date.now() - quizSession.createdAt,
+    };
+    setExamResults(prev => [result, ...prev]);
+
+    // Send quiz result back to Learner AI as context
+    const feedbackMsg = {
+      id: `quiz_result_${Date.now()}`,
+      role: "assistant" as const,
+      content: `📊 **Quiz Result — ${quizSession.topic}**\n\nScore: **${score}%** (${correct}/${quizSession.questions.length} correct)\n\n${score >= 80 ? "Great job! You have a solid understanding of this topic." : score >= 60 ? `You're getting there. Focus on reviewing these areas:\n${wrongTopics.map(t => `- ${t}`).join("\n")}` : `You need more practice. Key gaps:\n${wrongTopics.map(t => `- ${t}`).join("\n")}\n\nWant me to explain any of these in more detail?`}`,
+      timestamp: Date.now(),
+      model: "Quiz System",
+    };
+    const learnerKey = "learnerMessages";
+    const existing = (data as any)[learnerKey] || [];
+    updateData({ [learnerKey]: [...existing, feedbackMsg] } as any);
   };
 
   const autoSpeak = async (msgId: string, text: string) => {
