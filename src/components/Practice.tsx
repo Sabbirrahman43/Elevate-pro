@@ -154,7 +154,7 @@ const QuizView: React.FC<{
   const finished = session.score !== null;
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4">
       {/* Topic + score */}
       <div className="flex items-center justify-between shrink-0">
         <div>
@@ -800,8 +800,8 @@ Rules:
 
           {/* Quiz */}
           {quizSession ? (
-            <div className="flex-1 overflow-y-auto bg-white rounded-3xl border border-slate-100">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 shrink-0">
+            <div className="flex-1 flex flex-col min-h-0 bg-white rounded-3xl border border-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 flex-shrink-0">
                 <div>
                   <p className="font-black text-sm text-slate-900">🎯 {quizSession.topic}</p>
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{quizSession.questions.length} questions</p>
@@ -820,13 +820,15 @@ Rules:
                   </button>
                 </div>
               </div>
-              <QuizView
+              <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                <QuizView
                   session={quizSession}
                   onAnswer={handleQuizAnswer}
                   onReveal={handleReveal}
                   onFinish={handleFinishQuiz}
                   onReset={() => setQuizSession(null)}
                 />
+              </div>
             </div>
           ) : quizLoading ? (
             <div className="flex-1 flex items-center justify-center">
