@@ -109,40 +109,59 @@ export async function speakText(
 export function speakBrowser(text: string, voiceName?: string, onStop?: () => void): () => void {
   window.speechSynthesis.cancel();
 
-  // Clean markdown but keep full text — don't truncate
   const clean = text
     .replace(/#{1,6}\s/g, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
     .replace(/`(.+?)`/g, "$1")
-    .replace(/\[(.+?)\]\(.+?\)/g, "$1")
-    .replace(/[>#_~]/g, "")
+    .replace(/[>#_~[\](){}]/g, "")
     .replace(/\n+/g, ". ")
     .trim();
 
-  // Split into chunks under 200 chars at sentence boundaries to prevent cutoff
+  // Split into small chunks (~150 chars) at sentence boundaries
   const sentences = clean.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [clean];
   const chunks: string[] = [];
-  let current = "";
+  let cur = "";
   for (const s of sentences) {
-    if ((current + s).length > 200) {
-      if (current) chunks.push(current.trim());
-      current = s;
+    if ((cur + s).length > 150) {
+      if (cur.trim()) chunks.push(cur.trim());
+      cur = s;
     } else {
-      current += s;
+      cur += s;
     }
   }
-  if (current.trim()) chunks.push(current.trim());
+  if (cur.trim()) chunks.push(cur.trim());
 
-  let chunkIndex = 0;
+  let idx = 0;
+  let stopped = false;
+  let keepAlive: ReturnType<typeof setInterval> | null = null;
 
-  const speakNext = () => {
-    if (chunkIndex >= chunks.length) {
-      onStop?.();
+  // Mobile browser TTS bug: synthesis pauses after ~15s
+  // Fix: ping every 10s to keep it awake
+  const startKeepAlive = () => {
+    keepAlive = setInterval(() => {
+      if (!stopped && window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }
+    }, 10000);
+  };
+
+  const stopAll = () => {
+    stopped = true;
+    if (keepAlive) clearInterval(keepAlive);
+    window.speechSynthesis.cancel();
+  };
+
+  const speakChunk = () => {
+    if (stopped || idx >= chunks.length) {
+      if (keepAlive) clearInterval(keepAlive);
+      if (!stopped) onStop?.();
       return;
     }
-    const utt = new SpeechSynthesisUtterance(chunks[chunkIndex]);
-    chunkIndex++;
+
+    const utt = new SpeechSynthesisUtterance(chunks[idx]);
+    idx++;
 
     const voices = window.speechSynthesis.getVoices();
     const preferred = voices.find(v => v.name === voiceName)
@@ -154,23 +173,24 @@ export function speakBrowser(text: string, voiceName?: string, onStop?: () => vo
     utt.rate = 1.0;
     utt.pitch = 1.0;
     utt.volume = 1.0;
-    utt.onend = speakNext;
+    utt.onend = speakChunk;
     utt.onerror = (e) => {
-      // Only stop on real errors, not "interrupted" which happens on mobile
-      if (e.error !== "interrupted") speakNext();
+      if (!stopped && e.error !== "interrupted") speakChunk();
     };
     window.speechSynthesis.speak(utt);
   };
 
-  const loadAndSpeak = () => {
-    chunkIndex = 0;
-    speakNext();
+  const start = () => {
+    idx = 0;
+    stopped = false;
+    startKeepAlive();
+    speakChunk();
   };
 
-  if (window.speechSynthesis.getVoices().length > 0) loadAndSpeak();
-  else { window.speechSynthesis.onvoiceschanged = () => loadAndSpeak(); }
+  if (window.speechSynthesis.getVoices().length > 0) start();
+  else window.speechSynthesis.onvoiceschanged = start;
 
-  return () => { window.speechSynthesis.cancel(); chunkIndex = chunks.length; };
+  return stopAll;
 }
 
 // ─── CHAT WITH GROQ ──────────────────────────────────────────
