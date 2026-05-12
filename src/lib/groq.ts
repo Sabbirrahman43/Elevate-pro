@@ -40,7 +40,16 @@ export const GROQ_TTS_MODEL = "playai-tts";
 export const GROQ_STT_MODEL = "whisper-large-v3-turbo";
 
 export async function groqTTS(text: string, apiKey: string): Promise<ArrayBuffer | null> {
-  const clean = text.replace(/[#*`_~[\]()>{}]/g, "").replace(/\n+/g, " ").substring(0, 500);
+  // Clean markdown, allow up to 1000 chars
+  const clean = text
+    .replace(/#{1,6}\s/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/[>#_~[\]()]/g, "")
+    .replace(/\n+/g, " ")
+    .trim()
+    .substring(0, 1000);
   try {
     const res = await fetch("https://api.groq.com/openai/v1/audio/speech", {
       method: "POST",
@@ -99,23 +108,69 @@ export async function speakText(
 
 export function speakBrowser(text: string, voiceName?: string, onStop?: () => void): () => void {
   window.speechSynthesis.cancel();
-  const loadAndSpeak = () => {
+
+  // Clean markdown but keep full text — don't truncate
+  const clean = text
+    .replace(/#{1,6}\s/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/\[(.+?)\]\(.+?\)/g, "$1")
+    .replace(/[>#_~]/g, "")
+    .replace(/\n+/g, ". ")
+    .trim();
+
+  // Split into chunks under 200 chars at sentence boundaries to prevent cutoff
+  const sentences = clean.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [clean];
+  const chunks: string[] = [];
+  let current = "";
+  for (const s of sentences) {
+    if ((current + s).length > 200) {
+      if (current) chunks.push(current.trim());
+      current = s;
+    } else {
+      current += s;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+
+  let chunkIndex = 0;
+
+  const speakNext = () => {
+    if (chunkIndex >= chunks.length) {
+      onStop?.();
+      return;
+    }
+    const utt = new SpeechSynthesisUtterance(chunks[chunkIndex]);
+    chunkIndex++;
+
     const voices = window.speechSynthesis.getVoices();
-    const ut = new SpeechSynthesisUtterance(text.substring(0, 500));
     const preferred = voices.find(v => v.name === voiceName)
       || voices.find(v => v.name.includes("Google") && v.lang === "en-US")
       || voices.find(v => v.lang === "en-US" && !v.name.toLowerCase().includes("compact"))
       || voices.find(v => v.lang.startsWith("en"))
       || voices[0];
-    if (preferred) ut.voice = preferred;
-    ut.rate = 1.05; ut.pitch = 1.0; ut.volume = 1.0;
-    ut.onend = () => onStop?.();
-    ut.onerror = () => onStop?.();
-    window.speechSynthesis.speak(ut);
+    if (preferred) utt.voice = preferred;
+    utt.rate = 1.0;
+    utt.pitch = 1.0;
+    utt.volume = 1.0;
+    utt.onend = speakNext;
+    utt.onerror = (e) => {
+      // Only stop on real errors, not "interrupted" which happens on mobile
+      if (e.error !== "interrupted") speakNext();
+    };
+    window.speechSynthesis.speak(utt);
   };
+
+  const loadAndSpeak = () => {
+    chunkIndex = 0;
+    speakNext();
+  };
+
   if (window.speechSynthesis.getVoices().length > 0) loadAndSpeak();
-  else window.speechSynthesis.onvoiceschanged = () => loadAndSpeak();
-  return () => window.speechSynthesis.cancel();
+  else { window.speechSynthesis.onvoiceschanged = () => loadAndSpeak(); }
+
+  return () => { window.speechSynthesis.cancel(); chunkIndex = chunks.length; };
 }
 
 // ─── CHAT WITH GROQ ──────────────────────────────────────────

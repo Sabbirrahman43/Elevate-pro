@@ -312,23 +312,46 @@ export const AIIntelligence: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const stopFnRef = useRef<(() => void) | null>(null);
 
-  // Extract current learning topic from last few messages
+  // Extract current learning topic from conversation
   const extractCurrentTopic = (): string => {
-    const msgs = (data as any)[modeToKey("Learner")] as any[] || [];
-    // Look at last AI message for topic
-    const lastAI = [...msgs].reverse().find((m: any) => m.role === "assistant");
-    const lastUser = [...msgs].reverse().find((m: any) => m.role === "user");
-    if (lastAI?.content) {
-      // Try to extract topic from flashcard if recently created
-      const fc = (data.flashcards || []).slice(-1)[0];
-      if (fc) return fc.topic;
-      // Extract first meaningful phrase from last user message
-      if (lastUser?.content) {
-        const clean = lastUser.content.replace(/teach me|explain|what is|how does|tell me about/gi, "").trim();
-        if (clean.length > 3 && clean.length < 60) return clean;
+    // Use the current mode's messages (whatever mode we're in)
+    const msgs: ChatMessage[] = (data as any)[modeToKey(selectedMode)] || [];
+
+    // 1. Check most recent flashcard topic first (most accurate)
+    const flashcards = data.flashcards || [];
+    if (flashcards.length > 0) {
+      const recent = flashcards[flashcards.length - 1];
+      if (recent?.topic && recent.topic !== "General") return recent.topic;
+    }
+
+    // 2. Scan last few user messages for learning intent phrases
+    const userMsgs = msgs.filter(m => m.role === "user").slice(-5).reverse();
+    const learnPhrases = /teach me|explain|what is|how (?:does|do|to)|learn about|tell me about|understand|intro to|basics of|overview of/i;
+    for (const m of userMsgs) {
+      if (learnPhrases.test(m.content)) {
+        const topic = m.content
+          .replace(/teach me (?:about )?|explain (?:to me )?(?:what )?|what is (?:a |an |the )?|how (?:does |do |to )?|learn about |tell me about |understand |intro to |basics of |overview of /gi, "")
+          .replace(/[?.!,]/g, "")
+          .trim();
+        if (topic.length > 2 && topic.length < 80) return topic;
       }
     }
-    return "Current Learning Topic";
+
+    // 3. Try any recent user message as topic (last non-trivial one)
+    for (const m of userMsgs) {
+      const clean = m.content.trim();
+      if (clean.length > 5 && clean.length < 80 && !clean.includes("yes") && !clean.includes("no")) {
+        return clean;
+      }
+    }
+
+    // 4. Check user's goals for a topic hint
+    const goals = data.settings?.profile?.goals || "";
+    if (goals.toLowerCase().includes("cyber")) return "Cybersecurity";
+    if (goals.toLowerCase().includes("ielts")) return "IELTS";
+    if (goals.toLowerCase().includes("python")) return "Python";
+
+    return "Your recent study topic";
   };
 
   const handleMakeQuiz = () => {
@@ -557,9 +580,10 @@ export const AIIntelligence: React.FC = () => {
                   {flashcardCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">{flashcardCount}</span>}
                 </button>
                 <button onClick={handleMakeQuiz}
-                  className="relative px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200">
+                  className="relative px-3 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200"
+                  title={`Make quiz about: ${extractCurrentTopic()}`}>
                   <Zap className="w-4 h-4" />
-                  Make Quiz
+                  Quiz
                 </button>
               </>
             )}
@@ -696,26 +720,39 @@ export const AIIntelligence: React.FC = () => {
 
       {/* ── Input ── */}
       <div className="p-3 bg-white border-t border-gray-100">
-        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-3xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
-          <input type="text" value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-            placeholder={isRecording ? "🎙️ Listening…" : `Message ${aiName}`}
-            className="flex-1 bg-transparent outline-none font-medium text-sm py-1.5 px-1"
+        <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-3xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
+          <textarea
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder={isRecording ? "🎙️ Listening…" : `Message ${aiName}… (Shift+Enter for new line)`}
+            rows={1}
+            className="flex-1 bg-transparent outline-none font-medium text-sm py-1.5 px-1 resize-none overflow-hidden leading-relaxed"
+            style={{ minHeight: "36px", maxHeight: "120px" }}
           />
           <button
             onMouseDown={startVoice} onMouseUp={() => { stopVoice(); if (input.trim()) handleSend(); }}
             onTouchStart={startVoice} onTouchEnd={() => { stopVoice(); setTimeout(() => { if (input.trim()) handleSend(); }, 200); }}
             title="Hold to speak"
-            className={cn("w-9 h-9 flex items-center justify-center rounded-xl transition-all flex-shrink-0",
+            className={cn("w-9 h-9 flex items-center justify-center rounded-xl transition-all flex-shrink-0 mb-0.5",
               isRecording ? "bg-red-500 text-white animate-pulse" : "bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-600")}>
             {isRecording ? <StopCircle className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </button>
           <button onClick={() => handleSend()} disabled={!input.trim() || loading}
-            className="w-9 h-9 bg-gray-900 text-white flex items-center justify-center rounded-xl hover:bg-black transition-all disabled:opacity-40 flex-shrink-0 active:scale-95">
+            className="w-9 h-9 bg-gray-900 text-white flex items-center justify-center rounded-xl hover:bg-black transition-all disabled:opacity-40 flex-shrink-0 active:scale-95 mb-0.5">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
+        <p className="text-[10px] text-gray-300 font-medium mt-1 px-2">Enter to send · Shift+Enter for new line</p>
       </div>
 
       {/* ── Live call overlay ── */}
