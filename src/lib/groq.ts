@@ -71,30 +71,118 @@ export async function groqTTS(text: string, apiKey: string): Promise<ArrayBuffer
   }
 }
 
-// ─── SPEAK: Groq TTS → Gemini → Browser ─────────────────────
+// ─── ELEVENLABS VOICES ───────────────────────────────────────
+export const ELEVEN_VOICES = [
+  { id: "UmQN7jS1Ee8B1czsUtQh", name: "Theo",   desc: "Male · Deep · Confident" },
+  { id: "19STyYD15bswVz51nqLf", name: "Samara", desc: "Female · Warm · Natural"  },
+  { id: "nDJIICjR9zfJExIFeSCN", name: "Emma",   desc: "Female · Clear · Friendly" },
+];
+export const DEFAULT_ELEVEN_VOICE = ELEVEN_VOICES[0].id;
+
+// ElevenLabs streaming — starts playing in 1-2 seconds
+export async function elevenLabsTTS(
+  text: string,
+  apiKey: string,
+  voiceId: string,
+  onStop?: () => void
+): Promise<() => void> {
+  let stopped = false;
+
+  const clean = text
+    .replace(/#{1,6}\s/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/[>#_~[\](){}]/g, "")
+    .replace(/\n+/g, " ")
+    .trim()
+    .substring(0, 1500);
+
+  try {
+    const res = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "xi-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          text: clean,
+          model_id: "eleven_turbo_v2_5",
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+          output_format: "mp3_44100_128",
+        }),
+      }
+    );
+
+    if (!res.ok || !res.body) {
+      onStop?.();
+      return () => {};
+    }
+
+    // Collect stream then play
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done || stopped) break;
+      chunks.push(value);
+      total += value.length;
+    }
+
+    if (!stopped && total > 0) {
+      const merged = new Uint8Array(total);
+      let offset = 0;
+      for (const c of chunks) { merged.set(c, offset); offset += c.length; }
+
+      const blob = new Blob([merged], { type: "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      _currentAudio = audio;
+      audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; onStop?.(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; onStop?.(); };
+      audio.play().catch(() => { onStop?.(); });
+    }
+  } catch {
+    onStop?.();
+  }
+
+  return () => { stopped = true; stopSpeech(); };
+}
+
+// ─── SPEAK: ElevenLabs → Groq TTS → Browser ─────────────────
 export async function speakText(
   text: string,
   data: WorkspaceData,
   onStop?: () => void
 ): Promise<() => void> {
-  const clean = text.replace(/[#*`_~[\]()>{}]/g, "").replace(/\n+/g, " ").substring(0, 500);
-  const groqKey   = data.settings.groqKey;
-  const geminiKey = data.settings.geminiKey;
+  const elevenKey  = (data.settings as any).elevenLabsKey;
+  const elevenVoice = (data.settings as any).elevenLabsVoiceId || DEFAULT_ELEVEN_VOICE;
+  const groqKey    = data.settings.groqKey;
+  const geminiKey  = data.settings.geminiKey;
 
-  // 1. Groq PlayAI TTS — best free quality
+  // 1. ElevenLabs — best quality, user's own free key
+  if (elevenKey) {
+    return elevenLabsTTS(text, elevenKey, elevenVoice, onStop);
+  }
+
+  // 2. Groq PlayAI TTS
   if (groqKey) {
-    const buffer = await groqTTS(clean, groqKey);
+    const buffer = await groqTTS(text, groqKey);
     if (buffer) {
       playAudioBuffer(buffer).then(() => onStop?.());
       return () => stopSpeech();
     }
   }
 
-  // 2. Gemini TTS
+  // 3. Gemini TTS
   if (geminiKey) {
     try {
       const { generateSpeech, playBase64PCM, stopCurrentAudio } = await import("./gemini");
-      const base64 = await generateSpeech(clean, data);
+      const base64 = await generateSpeech(text, data);
       if (base64) {
         playBase64PCM(base64).then(() => onStop?.());
         return () => stopCurrentAudio();
@@ -102,8 +190,8 @@ export async function speakText(
     } catch {}
   }
 
-  // 3. Browser speech — always works
-  return speakBrowser(clean, data.settings.ai.voice?.selected, onStop);
+  // 4. Browser TTS — always works, keepalive fix for mobile
+  return speakBrowser(text, data.settings.ai.voice?.selected, onStop);
 }
 
 export function speakBrowser(text: string, voiceName?: string, onStop?: () => void): () => void {

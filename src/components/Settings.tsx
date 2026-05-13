@@ -440,7 +440,76 @@ export const Settings: React.FC = () => {
                 )}
               </div>
 
+              <hr className="border-gray-100" />
+
+              {/* ElevenLabs */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center text-lg">🎙</div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-black text-gray-900">ElevenLabs Voice</h3>
+                    <p className="text-xs text-gray-400 font-bold">Real human voice · Way better than browser TTS · Your own free key</p>
+                  </div>
+                  <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noreferrer"
+                    className="px-3 py-2 bg-violet-500 hover:bg-violet-600 text-white font-black text-xs rounded-xl transition-all whitespace-nowrap">
+                    Get Free Key →
+                  </a>
+                </div>
+
+                <div className="bg-violet-50 border border-violet-100 rounded-2xl p-4">
+                  <p className="text-xs font-bold text-violet-800">
+                    Go to <strong>elevenlabs.io</strong> → sign in → profile picture → <strong>API Keys</strong> → Create API Key → copy it here.
+                    Free plan = 10,000 chars/month. Voice plays instantly.
+                  </p>
+                </div>
+
+                <input
+                  type="password"
+                  placeholder="sk_... (ElevenLabs API key)"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold outline-none focus:border-violet-400 transition-all text-sm"
+                  value={(data.settings as any).elevenLabsKey || ""}
+                  onChange={(e) => updateData({ settings: { ...data.settings, elevenLabsKey: e.target.value } as any })}
+                />
+
+                {/* Voice picker */}
+                <div>
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Choose Voice</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { id: "UmQN7jS1Ee8B1czsUtQh", name: "Theo",   desc: "Male · Deep · Confident",  emoji: "🧔" },
+                      { id: "19STyYD15bswVz51nqLf", name: "Samara", desc: "Female · Warm · Natural",   emoji: "👩" },
+                      { id: "nDJIICjR9zfJExIFeSCN", name: "Emma",   desc: "Female · Clear · Friendly", emoji: "👱‍♀️" },
+                    ].map(v => {
+                      const currentId = (data.settings as any).elevenLabsVoiceId || "UmQN7jS1Ee8B1czsUtQh";
+                      const isActive = currentId === v.id;
+                      return (
+                        <button key={v.id}
+                          onClick={() => updateData({ settings: { ...data.settings, elevenLabsVoiceId: v.id } as any })}
+                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${isActive ? "border-violet-500 bg-violet-50" : "border-gray-100 hover:border-gray-300 bg-white"}`}>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${isActive ? "bg-violet-500" : "bg-gray-100"}`}>
+                            {v.emoji}
                           </div>
+                          <div className="flex-1">
+                            <p className="font-black text-sm text-gray-900">{v.name}</p>
+                            <p className="text-[10px] text-gray-400 font-bold">{v.desc}</p>
+                          </div>
+                          {isActive && <span className="text-violet-500 font-black text-xs">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {(data.settings as any).elevenLabsKey
+                  ? <div className="flex items-center gap-2 text-green-600 text-xs font-black">
+                      <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">✓</span>
+                      ElevenLabs connected — voice plays instantly ⚡
+                    </div>
+                  : <p className="text-xs text-gray-400 font-medium">Without key → uses Groq TTS or browser voice as backup</p>
+                }
+              </div>
+
+            </div>
           )}
 
           {activeSubTab === "Data & Storage" && (
