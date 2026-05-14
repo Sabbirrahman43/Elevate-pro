@@ -100,53 +100,47 @@ export async function elevenLabsTTS(
 
   try {
     const res = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "xi-api-key": apiKey,
+          "Accept": "audio/mpeg",
         },
         body: JSON.stringify({
           text: clean,
           model_id: "eleven_turbo_v2_5",
           voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-          output_format: "mp3_44100_128",
         }),
       }
     );
 
-    if (!res.ok || !res.body) {
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.error("ElevenLabs error:", res.status, errText);
       onStop?.();
       return () => {};
     }
 
-    // Collect stream then play
-    const reader = res.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
+    const arrayBuffer = await res.arrayBuffer();
+    if (stopped || arrayBuffer.byteLength === 0) { onStop?.(); return () => {}; }
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done || stopped) break;
-      chunks.push(value);
-      total += value.length;
-    }
-
-    if (!stopped && total > 0) {
-      const merged = new Uint8Array(total);
-      let offset = 0;
-      for (const c of chunks) { merged.set(c, offset); offset += c.length; }
-
-      const blob = new Blob([merged], { type: "audio/mpeg" });
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      _currentAudio = audio;
-      audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; onStop?.(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; onStop?.(); };
-      audio.play().catch(() => { onStop?.(); });
-    }
-  } catch {
+    const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
+    stopSpeech();
+    const audio = new Audio(url);
+    _currentAudio = audio;
+    audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; onStop?.(); };
+    audio.onerror = (e) => {
+      console.error("Audio play error:", e);
+      URL.revokeObjectURL(url);
+      _currentAudio = null;
+      onStop?.();
+    };
+    await audio.play();
+  } catch (e) {
+    console.error("ElevenLabs TTS failed:", e);
     onStop?.();
   }
 

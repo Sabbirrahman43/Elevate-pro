@@ -355,8 +355,22 @@ export const AIIntelligence: React.FC = () => {
   };
 
   const handleMakeQuiz = () => {
+    // Get actual conversation messages from current mode
+    const msgs: ChatMessage[] = (data as any)[modeToKey(selectedMode)] || [];
     const topic = extractCurrentTopic();
-    setPracticeQuizTopic(topic);
+
+    // Build a summary of what was actually discussed
+    const conversationSummary = msgs
+      .slice(-16) // last 8 exchanges
+      .map(m => `${m.role === "user" ? "User" : "AI"}: ${m.content.substring(0, 300)}`)
+      .join("\n");
+
+    // Pass both topic AND conversation context to Practice
+    setPracticeQuizTopic(
+      conversationSummary
+        ? `__CONTEXT__${topic}__MESSAGES__${conversationSummary}`
+        : topic
+    );
     setActiveTab("Practice");
   };
 

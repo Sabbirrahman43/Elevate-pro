@@ -424,39 +424,61 @@ MASTERED: ${task.id}`;
 
   // ── GENERATE QUIZ ──────────────────────────────────────────
   // Core quiz generator — callable with topic directly (from AI Learner mode)
-  const generateQuizForTopic = async (topic: string, count: number) => {
+  const generateQuizForTopic = async (rawTopic: string, count: number) => {
     setQuizLoading(true);
     setQuizSession(null);
-    const prompt = `Generate exactly ${count} multiple choice quiz questions about: "${topic}".
 
-Return ONLY a JSON array, no other text:
+    // Parse context passed from Learner mode
+    let topic = rawTopic;
+    let conversationContext = "";
+    if (rawTopic.startsWith("__CONTEXT__")) {
+      const parts = rawTopic.split("__MESSAGES__");
+      topic = parts[0].replace("__CONTEXT__", "").trim();
+      conversationContext = parts[1] || "";
+    }
+
+    // Build prompt — use actual conversation if available
+    const contextSection = conversationContext
+      ? `\nHere is the ACTUAL conversation the student had about this topic. Base your questions SPECIFICALLY on what was discussed:\n\n${conversationContext.substring(0, 3000)}\n\nIMPORTANT: Questions must come from the content above, not generic knowledge about "${topic}".`
+      : "";
+
+    const prompt = `Generate exactly ${count} multiple choice quiz questions about: "${topic}".${contextSection}
+
+Return ONLY a JSON array:
 [
   {
-    "question": "question text here?",
-    "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+    "question": "specific question based on what was discussed?",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
     "correct": 0,
-    "explanation": "Why this answer is correct — teach something specific.",
+    "explanation": "Clear explanation teaching why this is correct.",
     "topic": "${topic}"
   }
 ]
 
 Rules:
-- correct is INDEX (0=A, 1=B, 2=C, 3=D)
-- Vary question types: definitions, applications, comparisons, scenarios
-- All 4 options must be plausible (no obvious wrong answers)
-- Explanations must be educational, not just "because X is correct"
+- correct = index 0-3 (0=A, 1=B, 2=C, 3=D)
+- If conversation context given: questions MUST be about specific things discussed
+- Vary types: definitions, applications, comparisons, scenarios
+- All 4 options plausible — no obviously wrong answers
 - Return ONLY the JSON array, nothing else`;
 
     try {
       const msgs: ChatMessage[] = [{ id: "1", role: "user", content: prompt, timestamp: Date.now() }];
-      const text = await callAI(msgs, "You are a quiz generator. Return only valid JSON arrays, no markdown.", selectedModel, data);
+      const text = await callAI(msgs, "You are a quiz generator. Return only valid JSON arrays, no markdown, no preamble.", selectedModel, data);
       let questions: QuizQuestion[] = [];
       try {
         const match = text.match(/\[[\s\S]*\]/);
         if (match) questions = JSON.parse(match[0]).map((q: any, i: number) => ({ ...q, id: `q${i}`, topic }));
       } catch { questions = parseQuiz(text, topic); }
       if (questions.length === 0) throw new Error("Could not parse quiz. Try a different model.");
-      setQuizSession({ questions, answers: new Array(questions.length).fill(null), revealed: new Array(questions.length).fill(false), score: null, topic, createdAt: Date.now() });
+      setQuizSession({
+        questions,
+        answers: new Array(questions.length).fill(null),
+        revealed: new Array(questions.length).fill(false),
+        score: null,
+        topic,
+        createdAt: Date.now()
+      });
     } catch (err: any) {
       alert(`Quiz failed: ${err.message}`);
     } finally { setQuizLoading(false); }
