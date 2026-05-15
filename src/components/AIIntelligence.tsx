@@ -312,62 +312,64 @@ export const AIIntelligence: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const stopFnRef = useRef<(() => void) | null>(null);
 
-  // Extract current learning topic from conversation
   const extractCurrentTopic = (): string => {
-    // Use the current mode's messages (whatever mode we're in)
-    const msgs: ChatMessage[] = (data as any)[modeToKey(selectedMode)] || [];
+    // Always read from Learner mode messages — that's where learning happens
+    const msgs: ChatMessage[] = (data as any).learnerMessages || [];
 
-    // 1. Check most recent flashcard topic first (most accurate)
-    const flashcards = data.flashcards || [];
-    if (flashcards.length > 0) {
-      const recent = flashcards[flashcards.length - 1];
-      if (recent?.topic && recent.topic !== "General") return recent.topic;
+    // 1. Most recent flashcard topic = most specific and accurate
+    const cards = data.flashcards || [];
+    if (cards.length > 0) {
+      const last = cards[cards.length - 1];
+      if (last?.topic && last.topic !== "General" && last.topic.length > 2) return last.topic;
     }
 
-    // 2. Scan last few user messages for learning intent phrases
-    const userMsgs = msgs.filter(m => m.role === "user").slice(-5).reverse();
-    const learnPhrases = /teach me|explain|what is|how (?:does|do|to)|learn about|tell me about|understand|intro to|basics of|overview of/i;
-    for (const m of userMsgs) {
-      if (learnPhrases.test(m.content)) {
-        const topic = m.content
-          .replace(/teach me (?:about )?|explain (?:to me )?(?:what )?|what is (?:a |an |the )?|how (?:does |do |to )?|learn about |tell me about |understand |intro to |basics of |overview of /gi, "")
-          .replace(/[?.!,]/g, "")
+    // 2. Look at last 8 messages — find what was actually being discussed
+    const recent = msgs.slice(-8);
+
+    // Find AI messages that mention teaching a specific concept
+    for (const m of [...recent].reverse()) {
+      if (m.role === "assistant") {
+        // Look for explicit topic statements in AI response
+        const topicMatch = m.content.match(/(?:about|explaining|covering|topic[:\s]+|concept of|understand)\s+["']?([A-Za-z][A-Za-z0-9 \-/]{3,50})["']?/i);
+        if (topicMatch) return topicMatch[1].trim();
+      }
+    }
+
+    // 3. Last user message — clean it up to get the topic
+    for (const m of [...recent].reverse()) {
+      if (m.role === "user") {
+        const clean = m.content
+          .replace(/teach me (?:about )?|explain (?:to me )?|what is (?:a |an |the )?|how (?:does |do |to )?|tell me about |learn about |i want to (?:learn|understand) (?:about )?/gi, "")
+          .replace(/[?.!,\n]/g, " ")
+          .replace(/\s+/g, " ")
           .trim();
-        if (topic.length > 2 && topic.length < 80) return topic;
+        if (clean.length > 3 && clean.length < 80) return clean;
       }
     }
 
-    // 3. Try any recent user message as topic (last non-trivial one)
-    for (const m of userMsgs) {
-      const clean = m.content.trim();
-      if (clean.length > 5 && clean.length < 80 && !clean.includes("yes") && !clean.includes("no")) {
-        return clean;
-      }
-    }
+    // 4. Goal-based fallback
+    const goals = (data.settings?.profile?.goals || "").toLowerCase();
+    if (goals.includes("cyber")) return "Cybersecurity fundamentals";
+    if (goals.includes("ielts")) return "IELTS preparation";
+    if (goals.includes("python")) return "Python programming";
+    if (goals.includes("network")) return "Network security";
 
-    // 4. Check user's goals for a topic hint
-    const goals = data.settings?.profile?.goals || "";
-    if (goals.toLowerCase().includes("cyber")) return "Cybersecurity";
-    if (goals.toLowerCase().includes("ielts")) return "IELTS";
-    if (goals.toLowerCase().includes("python")) return "Python";
-
-    return "Your recent study topic";
+    return "What we just discussed";
   };
 
   const handleMakeQuiz = () => {
-    // Get actual conversation messages from current mode
-    const msgs: ChatMessage[] = (data as any)[modeToKey(selectedMode)] || [];
+    // Always use Learner mode messages for quiz context
+    const msgs: ChatMessage[] = (data as any).learnerMessages || [];
     const topic = extractCurrentTopic();
 
-    // Build a summary of what was actually discussed
+    // Build conversation context from Learner messages
     const conversationSummary = msgs
-      .slice(-16) // last 8 exchanges
-      .map(m => `${m.role === "user" ? "User" : "AI"}: ${m.content.substring(0, 300)}`)
+      .slice(-20)
+      .map(m => `${m.role === "user" ? "Student" : "Teacher"}: ${m.content.substring(0, 400)}`)
       .join("\n");
 
-    // Pass both topic AND conversation context to Practice
     setPracticeQuizTopic(
-      conversationSummary
+      conversationSummary.length > 50
         ? `__CONTEXT__${topic}__MESSAGES__${conversationSummary}`
         : topic
     );

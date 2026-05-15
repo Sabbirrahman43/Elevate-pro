@@ -1,16 +1,16 @@
 import { ChatMessage, WorkspaceData } from "../types";
 
-// ─── VERIFIED LIVE GROQ MODELS (May 2026) ────────────────────
+// ─── VERIFIED LIVE GROQ MODELS ───────────────────────────────
 export const GROQ_MODELS = [
-  { id: "llama-3.3-70b-versatile",                   name: "Llama 3.3 70B",   desc: "Best quality · Free",       speed: "Fast"    },
-  { id: "llama-3.1-8b-instant",                      name: "Llama 3.1 8B",    desc: "Fastest · Instant reply",   speed: "Instant" },
-  { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout",   desc: "Latest Meta · Vision",      speed: "Fast"    },
-  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick", desc: "Vision · Powerful",    speed: "Fast"    },
-  { id: "openai/gpt-oss-120b",                       name: "GPT OSS 120B",    desc: "Most powerful · Reasoning", speed: "Fast"    },
-  { id: "openai/gpt-oss-20b",                        name: "GPT OSS 20B",     desc: "Fast reasoning · Smart",    speed: "Instant" },
+  { id: "llama-3.3-70b-versatile",                       name: "Llama 3.3 70B",    speed: "Fast"    },
+  { id: "llama-3.1-8b-instant",                          name: "Llama 3.1 8B",     speed: "Instant" },
+  { id: "meta-llama/llama-4-scout-17b-16e-instruct",     name: "Llama 4 Scout",    speed: "Fast"    },
+  { id: "meta-llama/llama-4-maverick-17b-128e-instruct", name: "Llama 4 Maverick", speed: "Fast"    },
+  { id: "openai/gpt-oss-120b",                           name: "GPT OSS 120B",     speed: "Fast"    },
+  { id: "openai/gpt-oss-20b",                            name: "GPT OSS 20B",      speed: "Instant" },
 ];
 
-// ─── AUDIO ───────────────────────────────────────────────────
+// ─── AUDIO STATE ─────────────────────────────────────────────
 let _currentAudio: HTMLAudioElement | null = null;
 
 export function stopSpeech() {
@@ -19,7 +19,7 @@ export function stopSpeech() {
     _currentAudio.src = "";
     _currentAudio = null;
   }
-  window.speechSynthesis?.cancel();
+  try { window.speechSynthesis?.cancel(); } catch {}
 }
 
 export async function playAudioBuffer(buffer: ArrayBuffer): Promise<void> {
@@ -39,128 +39,169 @@ export async function playAudioBuffer(buffer: ArrayBuffer): Promise<void> {
 export const GROQ_TTS_MODEL = "playai-tts";
 export const GROQ_STT_MODEL = "whisper-large-v3-turbo";
 
-export async function groqTTS(text: string, apiKey: string): Promise<ArrayBuffer | null> {
-  // Clean markdown, allow up to 1000 chars
-  const clean = text
+function cleanForTTS(text: string, limit = 1000): string {
+  return text
     .replace(/#{1,6}\s/g, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
     .replace(/`(.+?)`/g, "$1")
-    .replace(/[>#_~[\]()]/g, "")
-    .replace(/\n+/g, " ")
+    .replace(/\[(.+?)\]\(.+?\)/g, "$1")
+    .replace(/[>#_~[\](){}|]/g, "")
+    .replace(/\n+/g, ". ")
+    .replace(/\s+/g, " ")
     .trim()
-    .substring(0, 1000);
+    .substring(0, limit);
+}
+
+export async function groqTTS(text: string, apiKey: string): Promise<ArrayBuffer | null> {
   try {
     const res = await fetch("https://api.groq.com/openai/v1/audio/speech", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: GROQ_TTS_MODEL,
-        input: clean,
+        input: cleanForTTS(text, 1000),
         voice: "Celeste-PlayAI",
         response_format: "wav",
       }),
     });
     if (!res.ok) return null;
     return await res.arrayBuffer();
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 // ─── ELEVENLABS VOICES ───────────────────────────────────────
 export const ELEVEN_VOICES = [
-  { id: "UmQN7jS1Ee8B1czsUtQh", name: "Theo",   desc: "Male · Deep · Confident" },
-  { id: "19STyYD15bswVz51nqLf", name: "Samara", desc: "Female · Warm · Natural"  },
-  { id: "nDJIICjR9zfJExIFeSCN", name: "Emma",   desc: "Female · Clear · Friendly" },
+  { id: "UmQN7jS1Ee8B1czsUtQh", name: "Theo",   desc: "Male · Deep · Confident",  emoji: "🧔" },
+  { id: "19STyYD15bswVz51nqLf", name: "Samara", desc: "Female · Warm · Natural",   emoji: "👩" },
+  { id: "nDJIICjR9zfJExIFeSCN", name: "Emma",   desc: "Female · Clear · Friendly", emoji: "👱‍♀️" },
 ];
 export const DEFAULT_ELEVEN_VOICE = ELEVEN_VOICES[0].id;
 
-// ElevenLabs streaming — starts playing in 1-2 seconds
-export async function elevenLabsTTS(
-  text: string,
-  apiKey: string,
-  voiceId: string,
-  onStop?: () => void
-): Promise<() => void> {
-  let stopped = false;
-
-  const clean = text
-    .replace(/#{1,6}\s/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/`(.+?)`/g, "$1")
-    .replace(/[>#_~[\](){}]/g, "")
-    .replace(/\n+/g, " ")
-    .trim()
-    .substring(0, 1500);
-
+// Returns true if success, false if failed
+async function tryElevenLabs(text: string, apiKey: string, voiceId: string, onEnd: () => void): Promise<boolean> {
   try {
-    const res = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "xi-api-key": apiKey,
-          "Accept": "audio/mpeg",
-        },
-        body: JSON.stringify({
-          text: clean,
-          model_id: "eleven_turbo_v2_5",
-          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-        }),
-      }
-    );
-
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "xi-api-key": apiKey,
+        "Accept": "audio/mpeg",
+      },
+      body: JSON.stringify({
+        text: cleanForTTS(text, 1500),
+        model_id: "eleven_turbo_v2_5",
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+      }),
+    });
     if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      console.error("ElevenLabs error:", res.status, errText);
-      onStop?.();
-      return () => {};
+      console.warn("ElevenLabs HTTP error:", res.status, await res.text().catch(() => ""));
+      return false;
     }
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength < 100) return false; // empty response
 
-    const arrayBuffer = await res.arrayBuffer();
-    if (stopped || arrayBuffer.byteLength === 0) { onStop?.(); return () => {}; }
-
-    const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
-    const url = URL.createObjectURL(blob);
     stopSpeech();
+    const blob = new Blob([buf], { type: "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     _currentAudio = audio;
-    audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; onStop?.(); };
-    audio.onerror = (e) => {
-      console.error("Audio play error:", e);
-      URL.revokeObjectURL(url);
-      _currentAudio = null;
-      onStop?.();
-    };
-    await audio.play();
+    audio.onended = () => { URL.revokeObjectURL(url); _currentAudio = null; onEnd(); };
+    audio.onerror = () => { URL.revokeObjectURL(url); _currentAudio = null; onEnd(); };
+    try { await audio.play(); return true; } catch { return false; }
   } catch (e) {
-    console.error("ElevenLabs TTS failed:", e);
-    onStop?.();
+    console.warn("ElevenLabs fetch failed:", e);
+    return false;
   }
-
-  return () => { stopped = true; stopSpeech(); };
 }
 
-// ─── SPEAK: ElevenLabs → Groq TTS → Browser ─────────────────
+// ─── BROWSER TTS with mobile keepalive ───────────────────────
+export function speakBrowser(text: string, voiceName?: string, onStop?: () => void): () => void {
+  try { window.speechSynthesis.cancel(); } catch {}
+
+  const clean = cleanForTTS(text, 5000); // no limit for browser TTS
+
+  // Split into small chunks at sentence boundaries
+  const sentences = clean.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [clean];
+  const chunks: string[] = [];
+  let cur = "";
+  for (const s of sentences) {
+    if ((cur + s).length > 120) {
+      if (cur.trim()) chunks.push(cur.trim());
+      cur = s;
+    } else { cur += s; }
+  }
+  if (cur.trim()) chunks.push(cur.trim());
+
+  let idx = 0;
+  let stopped = false;
+  let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
+  const stopAll = () => {
+    stopped = true;
+    if (keepAliveTimer) clearInterval(keepAliveTimer);
+    try { window.speechSynthesis.cancel(); } catch {}
+  };
+
+  // Keepalive: Brave/mobile Chrome kills TTS after 15s — pause/resume every 8s resets timer
+  const startKeepAlive = () => {
+    keepAliveTimer = setInterval(() => {
+      if (!stopped && window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }
+    }, 8000);
+  };
+
+  const speakChunk = () => {
+    if (stopped || idx >= chunks.length) {
+      if (keepAliveTimer) clearInterval(keepAliveTimer);
+      if (!stopped) onStop?.();
+      return;
+    }
+    const utt = new SpeechSynthesisUtterance(chunks[idx++]);
+    const voices = window.speechSynthesis.getVoices();
+    const v = voices.find(v => v.name === voiceName)
+      || voices.find(v => v.name.includes("Google") && v.lang === "en-US")
+      || voices.find(v => v.lang === "en-US" && !v.name.toLowerCase().includes("compact"))
+      || voices.find(v => v.lang.startsWith("en"));
+    if (v) utt.voice = v;
+    utt.rate = 1.0; utt.pitch = 1.0; utt.volume = 1.0;
+    utt.onend = speakChunk;
+    utt.onerror = (e) => { if (!stopped && e.error !== "interrupted") speakChunk(); };
+    try { window.speechSynthesis.speak(utt); } catch {}
+  };
+
+  const start = () => {
+    idx = 0; stopped = false;
+    startKeepAlive();
+    speakChunk();
+  };
+
+  if (window.speechSynthesis.getVoices().length > 0) start();
+  else window.speechSynthesis.onvoiceschanged = start;
+
+  return stopAll;
+}
+
+// ─── MAIN SPEAK FUNCTION ─────────────────────────────────────
+// Order: ElevenLabs → Groq TTS → Gemini → Browser
 export async function speakText(
   text: string,
   data: WorkspaceData,
   onStop?: () => void
 ): Promise<() => void> {
-  const elevenKey  = (data.settings as any).elevenLabsKey;
+  const elevenKey   = (data.settings as any).elevenLabsKey?.trim();
   const elevenVoice = (data.settings as any).elevenLabsVoiceId || DEFAULT_ELEVEN_VOICE;
-  const groqKey    = data.settings.groqKey;
-  const geminiKey  = data.settings.geminiKey;
+  const groqKey     = data.settings.groqKey?.trim();
+  const geminiKey   = data.settings.geminiKey?.trim();
 
-  // 1. ElevenLabs — best quality, user's own free key
+  // 1. ElevenLabs — real human voice, instant
   if (elevenKey) {
-    return elevenLabsTTS(text, elevenKey, elevenVoice, onStop);
+    const ok = await tryElevenLabs(text, elevenKey, elevenVoice, () => onStop?.());
+    if (ok) return () => stopSpeech();
+    // ElevenLabs failed — fall through to browser
+    console.warn("ElevenLabs failed, falling back to browser TTS");
   }
 
   // 2. Groq PlayAI TTS
@@ -184,95 +225,8 @@ export async function speakText(
     } catch {}
   }
 
-  // 4. Browser TTS — always works, keepalive fix for mobile
-  return speakBrowser(text, data.settings.ai.voice?.selected, onStop);
-}
-
-export function speakBrowser(text: string, voiceName?: string, onStop?: () => void): () => void {
-  window.speechSynthesis.cancel();
-
-  const clean = text
-    .replace(/#{1,6}\s/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/`(.+?)`/g, "$1")
-    .replace(/[>#_~[\](){}]/g, "")
-    .replace(/\n+/g, ". ")
-    .trim();
-
-  // Split into small chunks (~150 chars) at sentence boundaries
-  const sentences = clean.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [clean];
-  const chunks: string[] = [];
-  let cur = "";
-  for (const s of sentences) {
-    if ((cur + s).length > 150) {
-      if (cur.trim()) chunks.push(cur.trim());
-      cur = s;
-    } else {
-      cur += s;
-    }
-  }
-  if (cur.trim()) chunks.push(cur.trim());
-
-  let idx = 0;
-  let stopped = false;
-  let keepAlive: ReturnType<typeof setInterval> | null = null;
-
-  // Mobile browser TTS bug: synthesis pauses after ~15s
-  // Fix: ping every 10s to keep it awake
-  const startKeepAlive = () => {
-    keepAlive = setInterval(() => {
-      if (!stopped && window.speechSynthesis.speaking) {
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
-      }
-    }, 10000);
-  };
-
-  const stopAll = () => {
-    stopped = true;
-    if (keepAlive) clearInterval(keepAlive);
-    window.speechSynthesis.cancel();
-  };
-
-  const speakChunk = () => {
-    if (stopped || idx >= chunks.length) {
-      if (keepAlive) clearInterval(keepAlive);
-      if (!stopped) onStop?.();
-      return;
-    }
-
-    const utt = new SpeechSynthesisUtterance(chunks[idx]);
-    idx++;
-
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v => v.name === voiceName)
-      || voices.find(v => v.name.includes("Google") && v.lang === "en-US")
-      || voices.find(v => v.lang === "en-US" && !v.name.toLowerCase().includes("compact"))
-      || voices.find(v => v.lang.startsWith("en"))
-      || voices[0];
-    if (preferred) utt.voice = preferred;
-    utt.rate = 1.0;
-    utt.pitch = 1.0;
-    utt.volume = 1.0;
-    utt.onend = speakChunk;
-    utt.onerror = (e) => {
-      if (!stopped && e.error !== "interrupted") speakChunk();
-    };
-    window.speechSynthesis.speak(utt);
-  };
-
-  const start = () => {
-    idx = 0;
-    stopped = false;
-    startKeepAlive();
-    speakChunk();
-  };
-
-  if (window.speechSynthesis.getVoices().length > 0) start();
-  else window.speechSynthesis.onvoiceschanged = start;
-
-  return stopAll;
+  // 4. Browser TTS — always works
+  return speakBrowser(text, data.settings.ai?.voice?.selected, onStop);
 }
 
 // ─── CHAT WITH GROQ ──────────────────────────────────────────
@@ -282,29 +236,28 @@ export async function chatWithGroq(
   modelId: string,
   onTaskAction?: (action: any) => void
 ): Promise<{ text: string }> {
-  const apiKey = data.settings.groqKey;
+  const apiKey = data.settings.groqKey?.trim();
   if (!apiKey) throw new Error("No Groq API key. Get free at console.groq.com → Settings → Integrations.");
 
   const injectedPrompt = (data as any)._systemPrompt;
-  const persona  = data.settings.ai.identity;
-  const profile  = data.settings.profile;
+  const persona        = data.settings.ai.identity;
+  const profile        = data.settings.profile;
   const activeTasks    = data.tasks.filter(t => !t.completed).map(t => `- [TASK:${t.id}] ${t.text}`).join("\n") || "None";
   const completedTasks = data.tasks.filter(t => t.completed).slice(-5).map(t => `- [TASK:${t.id}] ${t.text}`).join("\n") || "None";
   const habitList      = data.habits.map(h => `- [HABIT:${h.id}] ${h.name}`).join("\n") || "None";
 
   const systemPrompt = injectedPrompt || buildDefaultPrompt(persona, profile, activeTasks, completedTasks, habitList);
-
-  // Only models confirmed working on Groq May 2026
   const needsReasoning = modelId.includes("gpt-oss");
-
-  // Trim messages to avoid TPM limits — keep last 8 messages max
   const trimmed = messages.slice(-8);
 
   const body: any = {
     model: modelId,
     messages: [
       { role: "system", content: systemPrompt },
-      ...trimmed.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.substring(0, 2000) })),
+      ...trimmed.map(m => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content.substring(0, 2000),
+      })),
     ],
     max_tokens: 800,
     temperature: 0.85,
@@ -321,14 +274,12 @@ export async function chatWithGroq(
     const err = await response.json().catch(() => ({}));
     const msg = err?.error?.message || response.statusText;
     if (response.status === 401) throw new Error("Invalid Groq key. Check Settings → Integrations.");
-    if (response.status === 429) throw new Error("Token limit hit. Switch to a different model or wait ~1 minute. Tip: use Auto mode.");
-    if (msg?.includes("decommissioned") || msg?.includes("does not exist") || msg?.includes("removed")) {
-      throw new Error(`This model was removed by Groq. Please select Llama 3.3 70B or another model.`);
-    }
-    if (msg?.includes("too large") || msg?.includes("TPM")) {
-      throw new Error("Message too long for this model. Switch to Llama 3.3 70B or clear the chat.");
-    }
-    throw new Error(`Groq error: ${msg}`);
+    if (response.status === 429) throw new Error("Rate limit hit. Switch model or wait ~1 min. Use Auto mode.");
+    if (msg?.includes("decommissioned") || msg?.includes("does not exist") || msg?.includes("removed"))
+      throw new Error("This model was removed. Select Llama 3.3 70B.");
+    if (msg?.includes("too large") || msg?.includes("TPM"))
+      throw new Error("Message too long. Switch to Llama 3.3 70B or clear chat.");
+    throw new Error(`Groq: ${msg}`);
   }
 
   const json = await response.json();
@@ -363,16 +314,16 @@ USER:
 - Goals: ${profile.goals || "not set"}
 - About: ${profile.about || "not set"}
 
-Active tasks: ${activeTasks}
-Completed: ${completedTasks}
-Habits: ${habitList}
+Active tasks:\n${activeTasks}
+Completed:\n${completedTasks}
+Habits:\n${habitList}
 
 HOW TO THINK:
 - Read between the lines. Understand what they ACTUALLY mean.
 - Be proportional: short = short, complex = thorough.
 - Have real opinions. Give direct answers.
 - Never say "Certainly!", "Great question!", "As an AI".
-- Never guess facts — say "I don't know" if unsure.
+- Never guess facts — say you're unsure if unsure.
 
 Task/habit management — append silent JSON at end:
 {"action":"task_create","text":"description"}

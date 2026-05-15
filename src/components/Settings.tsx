@@ -501,9 +501,34 @@ export const Settings: React.FC = () => {
                 </div>
 
                 {(data.settings as any).elevenLabsKey
-                  ? <div className="flex items-center gap-2 text-green-600 text-xs font-black">
-                      <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">✓</span>
-                      ElevenLabs connected — voice plays instantly ⚡
+                  ? <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-green-600 text-xs font-black">
+                        <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">✓</span>
+                        ElevenLabs key saved
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const { ELEVEN_VOICES, DEFAULT_ELEVEN_VOICE } = await import("../lib/groq");
+                          const voiceId = (data.settings as any).elevenLabsVoiceId || DEFAULT_ELEVEN_VOICE;
+                          const voice = ELEVEN_VOICES.find(v => v.id === voiceId);
+                          const key = (data.settings as any).elevenLabsKey;
+                          try {
+                            const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json", "xi-api-key": key, "Accept": "audio/mpeg" },
+                              body: JSON.stringify({ text: `Hi! I am ${voice?.name || "your AI voice"}. ElevenLabs is working perfectly.`, model_id: "eleven_turbo_v2_5", voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+                            });
+                            if (!res.ok) { alert(`❌ ElevenLabs error ${res.status}: ${await res.text()}`); return; }
+                            const buf = await res.arrayBuffer();
+                            const audio = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" })));
+                            audio.play();
+                            alert("✅ ElevenLabs working! You should hear the voice.");
+                          } catch(e: any) { alert(`❌ Failed: ${e.message}\n\nMake sure Brave Shields are OFF for this site.`); }
+                        }}
+                        className="w-full py-3 bg-violet-500 hover:bg-violet-600 text-white font-black rounded-2xl text-sm transition-all"
+                      >
+                        🎙 Test Voice Now
+                      </button>
                     </div>
                   : <p className="text-xs text-gray-400 font-medium">Without key → uses Groq TTS or browser voice as backup</p>
                 }
