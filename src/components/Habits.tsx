@@ -72,8 +72,9 @@ export const Habits: React.FC = () => {
 
   const getHabitStreak = (habit: any) => {
     let streak = 0;
-    let curr = new Date();
-    while (true) {
+    const curr = new Date();
+    // Cap at 365 days to prevent any infinite loop on corrupted data
+    for (let i = 0; i < 365; i++) {
       const d = curr.toISOString().split("T")[0];
       if (habit.logs[d]) {
         streak++;

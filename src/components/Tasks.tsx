@@ -9,15 +9,23 @@ import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
 import { cn, generateId, getTodayDate } from "../lib/utils";
 
-//  SOUND FX 
+//  SOUND FX — single shared AudioContext (no resource leak)
+let _sharedCtx: AudioContext | null = null;
+function getAudioCtx(): AudioContext {
+  if (!_sharedCtx || _sharedCtx.state === "closed") {
+    _sharedCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  if (_sharedCtx.state === "suspended") _sharedCtx.resume();
+  return _sharedCtx;
+}
+
 function playSound(type: "check" | "complete" | "streak") {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const ctx = getAudioCtx();
     const g = ctx.createGain();
     g.connect(ctx.destination);
 
     if (type === "check") {
-      // Soft tick  task checked
       const o = ctx.createOscillator();
       o.connect(g);
       o.frequency.setValueAtTime(880, ctx.currentTime);
@@ -27,7 +35,6 @@ function playSound(type: "check" | "complete" | "streak") {
       o.start(); o.stop(ctx.currentTime + 0.15);
 
     } else if (type === "complete") {
-      // Victory chord  all tasks done
       [523, 659, 784, 1047].forEach((freq, i) => {
         const o = ctx.createOscillator();
         const gn = ctx.createGain();
@@ -42,7 +49,6 @@ function playSound(type: "check" | "complete" | "streak") {
       });
 
     } else if (type === "streak") {
-      // Streak sound  ascending arpeggio
       [440, 554, 659, 880].forEach((freq, i) => {
         const o = ctx.createOscillator();
         const gn = ctx.createGain();

@@ -3,10 +3,7 @@ import { supabase } from "../lib/supabase";
 import { WorkspaceData } from "../types";
 
 const DEFAULT_DATA: WorkspaceData = {
-  tasks: [], habits: [], notes: [],
-  messages: [],
-  researchMessages: [], supportMessages: [], plannerMessages: [], learnerMessages: [],
-  flashcards: [],
+  tasks: [], habits: [], notes: [], messages: [],
   offDays: ["Sat", "Sun"],
   practiceQueue: [],
   history: [],
@@ -45,25 +42,26 @@ const loadLocal = (): WorkspaceData => {
     if (!s) return DEFAULT_DATA;
     const p = JSON.parse(s);
     return {
-      ...DEFAULT_DATA, ...p,
-      researchMessages: p.researchMessages || [],
-      supportMessages:  p.supportMessages  || [],
-      plannerMessages:  p.plannerMessages  || [],
-      learnerMessages:  p.learnerMessages  || [],
-      flashcards:       p.flashcards       || [],
+      ...DEFAULT_DATA,
+      ...p,
       practiceQueue: p.practiceQueue || [],
       history: p.history || [],
       stats: { ...DEFAULT_DATA.stats, ...(p.stats || {}) },
       settings: {
-        ...DEFAULT_DATA.settings, ...p.settings,
+        ...DEFAULT_DATA.settings,
+        ...p.settings,
         ai: {
-          ...DEFAULT_DATA.settings.ai, ...(p.settings?.ai || {}),
+          ...DEFAULT_DATA.settings.ai,
+          ...(p.settings?.ai || {}),
           identity: { ...DEFAULT_DATA.settings.ai.identity, ...(p.settings?.ai?.identity || {}) },
           voice: { ...DEFAULT_DATA.settings.ai.voice, ...(p.settings?.ai?.voice || {}) },
         }
       }
     };
-  } catch { localStorage.removeItem(LS); return DEFAULT_DATA; }
+  } catch {
+    localStorage.removeItem(LS);
+    return DEFAULT_DATA;
+  }
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -77,7 +75,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const loadCloud = useCallback(async (uid: string) => {
     try {
-      const { data: cloud, error } = await supabase.from("user_data").select("data").eq("id", uid).single();
+      const { data: cloud, error } = await supabase
+        .from("user_data").select("data").eq("id", uid).single();
       if (!error && cloud?.data) {
         const remote = cloud.data as WorkspaceData;
         setData(prev => remote.lastSync > prev.lastSync
@@ -93,8 +92,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setLoading(false);
       return;
     }
-    // KEY FIX: only onAuthStateChange, never getSession
-    // After Google redirect, token is in URL hash - onAuthStateChange detects it automatically
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
@@ -109,6 +107,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         window.history.replaceState(null, "", window.location.pathname);
       }
     });
+
     return () => subscription.unsubscribe();
   }, [loadCloud]);
 
@@ -118,7 +117,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const syncToCloud = useCallback(async () => {
     if (!user || user.isGuest) return;
-    try { await supabase.from("user_data").upsert({ id: user.id, data, updated_at: new Date().toISOString() }); } catch {}
+    try {
+      await supabase.from("user_data").upsert({
+        id: user.id, data, updated_at: new Date().toISOString()
+      });
+    } catch {}
   }, [user, data]);
 
   useEffect(() => {
@@ -128,13 +131,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [user, syncToCloud]);
 
   const signOut = useCallback(async () => {
-    try { await supabase.auth.signOut({ scope: "global" }); } catch {}
+    try { await supabase.auth.signOut(); } catch {}
     localStorage.removeItem("elevate_guest");
     localStorage.removeItem(LS);
-    sessionStorage.clear();
     setUser(null);
     setData(DEFAULT_DATA);
-    window.location.href = window.location.origin;
   }, []);
 
   const hardReset = useCallback(async () => {

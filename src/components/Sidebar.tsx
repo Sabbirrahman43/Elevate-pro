@@ -9,7 +9,8 @@ import {
   ShieldCheck,
   LogOut,
   Menu,
-  X
+  X,
+  NotebookPen
 } from "lucide-react";
 import { SidebarCanvas } from "./SidebarCanvas";
 import { useStore } from "../store/useStore";
@@ -25,12 +26,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   const { user, signOut } = useStore();
   const [isOpen, setIsOpen] = React.useState(false);
   
+  React.useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+  
+  // NOTE FOR FUTURE: Replace this email check with a proper Supabase Role/Claim.
+  // To do this: create a 'profiles' table in Supabase with a 'role' column,
+  // set role='admin' for your user ID, then check that role here instead of email.
   const isAdmin = user?.email === "prantorahman6900@gmail.com";
 
   const tabs = [
     { name: "Dashboard", icon: LayoutDashboard },
     { name: "Habits", icon: Flame },
     { name: "Tasks", icon: CheckCircle2 },
+    { name: "Notes", icon: NotebookPen },
     { name: "AI", icon: BrainCircuit },
     { name: "Practice", icon: GraduationCap },
     { name: "Settings", icon: SettingsIcon },

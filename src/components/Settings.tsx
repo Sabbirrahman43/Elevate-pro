@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import { generateSpeech } from "../lib/gemini";
 
-const PERSONAS = ["Coach", "Teacher", "Trainer", "Partner", "Friend", "Wife", "Girlfriend"];
+const PERSONAS = ["Coach", "Teacher", "Trainer", "Partner", "Friend", "Mentor", "Therapist"];
 const VOICES = ["Puck", "Kore", "Zephyr", "Charon", "Fenrir"];
 
 
@@ -165,8 +165,11 @@ export const Settings: React.FC = () => {
                   <label className="absolute -bottom-2 -right-2 bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-500/30 opacity-0 group-hover:opacity-100 transition-all cursor-pointer">
                     <Upload className="w-5 h-5" />
                     <input type="file" accept="image/*" className="hidden" onChange={e => {
-                      const file = e.target.files?.[0]; if (!file) return;
-                      const r = new FileReader(); r.onloadend = () => updateData({ settings: { ...data.settings, profile: { ...data.settings.profile, avatar: r.result as string } } }); r.readAsDataURL(file);
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onloadend = () => updateData({ settings: { ...data.settings, profile: { ...data.settings.profile, avatar: reader.result as string } } });
+                      reader.readAsDataURL(file);
                     }} />
                   </label>
                 </div>
@@ -257,8 +260,11 @@ export const Settings: React.FC = () => {
                     <label className="bg-white p-3 rounded-2xl text-blue-600 shadow-lg opacity-0 group-hover:opacity-100 transition-all border border-gray-100 cursor-pointer">
                       <Camera className="w-5 h-5" />
                       <input type="file" accept="image/*" className="hidden" onChange={e => {
-                        const file = e.target.files?.[0]; if (!file) return;
-                        const r = new FileReader(); r.onloadend = () => updateData({ settings: { ...data.settings, ai: { ...data.settings.ai, identity: { ...data.settings.ai.identity, avatar: r.result as string } } } }); r.readAsDataURL(file);
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onloadend = () => updateData({ settings: { ...data.settings, ai: { ...data.settings.ai, identity: { ...data.settings.ai.identity, avatar: reader.result as string } } } });
+                        reader.readAsDataURL(file);
                       }} />
                     </label>
                     <button className="bg-indigo-600 p-3 rounded-2xl text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all">
@@ -331,10 +337,25 @@ export const Settings: React.FC = () => {
 
           {activeSubTab === "Integrations" && (
             <div className="space-y-12">
+              {/* Security notice */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+                <Lock className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">Key Security Notice</p>
+                  <p className="text-xs font-bold text-amber-700 leading-relaxed">
+                    Your API keys are stored only on this device — never shared with anyone. Never share your keys with other people or paste them into untrusted websites. Keys are for your personal use only.
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center font-bold text-indigo-600">G</div>
                   <h3 className="text-xl font-black text-gray-900">Gemini Key</h3>
+                  <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer"
+                    className="ml-auto px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-black text-xs rounded-xl transition-all">
+                    Get Free Key →
+                  </a>
                 </div>
                 <div className="p-8 bg-gray-50 rounded-[2.5rem] border border-gray-100 flex items-center gap-6">
                   <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg text-indigo-500">
@@ -347,6 +368,7 @@ export const Settings: React.FC = () => {
                       value={data.settings.geminiKey}
                       onChange={(e) => updateData({ settings: { ...data.settings, geminiKey: e.target.value } })}
                       placeholder="Enter AI Studio Key..."
+                      autoComplete="off"
                     />
                     <button 
                       onClick={() => setShowKey(!showKey)}
@@ -356,6 +378,12 @@ export const Settings: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                {data.settings.geminiKey && (
+                  <div className="flex items-center gap-2 text-green-600 text-xs font-black">
+                    <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">✓</span>
+                    Gemini key saved — vision, TTS, and Gemini models are active
+                  </div>
+                )}
               </div>
 
               {/* Dashboard Theme */}
@@ -434,106 +462,11 @@ export const Settings: React.FC = () => {
                 </div>
                 {data.settings.groqKey && (
                   <div className="flex items-center gap-2 text-green-600 text-xs font-black">
-                    <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">✓</span>
-                    Groq key saved — switch to any Groq model in the AI chat
+                    <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center"></span>
+                    Groq key saved  switch to any Groq model in the AI chat
                   </div>
                 )}
               </div>
-
-              <hr className="border-gray-100" />
-
-              {/* ElevenLabs */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center text-lg">🎙</div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-black text-gray-900">ElevenLabs Voice</h3>
-                    <p className="text-xs text-gray-400 font-bold">Real human voice · Way better than browser TTS · Your own free key</p>
-                  </div>
-                  <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noreferrer"
-                    className="px-3 py-2 bg-violet-500 hover:bg-violet-600 text-white font-black text-xs rounded-xl transition-all whitespace-nowrap">
-                    Get Free Key →
-                  </a>
-                </div>
-
-                <div className="bg-violet-50 border border-violet-100 rounded-2xl p-4">
-                  <p className="text-xs font-bold text-violet-800">
-                    Go to <strong>elevenlabs.io</strong> → sign in → profile picture → <strong>API Keys</strong> → Create API Key → copy it here.
-                    Free plan = 10,000 chars/month. Voice plays instantly.
-                  </p>
-                </div>
-
-                <input
-                  type="password"
-                  placeholder="sk_... (ElevenLabs API key)"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 font-bold outline-none focus:border-violet-400 transition-all text-sm"
-                  value={(data.settings as any).elevenLabsKey || ""}
-                  onChange={(e) => updateData({ settings: { ...data.settings, elevenLabsKey: e.target.value } as any })}
-                />
-
-                {/* Voice picker */}
-                <div>
-                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Choose Voice</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    {[
-                      { id: "UmQN7jS1Ee8B1czsUtQh", name: "Theo",   desc: "Male · Deep · Confident",  emoji: "🧔" },
-                      { id: "19STyYD15bswVz51nqLf", name: "Samara", desc: "Female · Warm · Natural",   emoji: "👩" },
-                      { id: "nDJIICjR9zfJExIFeSCN", name: "Emma",   desc: "Female · Clear · Friendly", emoji: "👱‍♀️" },
-                    ].map(v => {
-                      const currentId = (data.settings as any).elevenLabsVoiceId || "UmQN7jS1Ee8B1czsUtQh";
-                      const isActive = currentId === v.id;
-                      return (
-                        <button key={v.id}
-                          onClick={() => updateData({ settings: { ...data.settings, elevenLabsVoiceId: v.id } as any })}
-                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${isActive ? "border-violet-500 bg-violet-50" : "border-gray-100 hover:border-gray-300 bg-white"}`}>
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${isActive ? "bg-violet-500" : "bg-gray-100"}`}>
-                            {v.emoji}
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-black text-sm text-gray-900">{v.name}</p>
-                            <p className="text-[10px] text-gray-400 font-bold">{v.desc}</p>
-                          </div>
-                          {isActive && <span className="text-violet-500 font-black text-xs">✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {(data.settings as any).elevenLabsKey
-                  ? <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-green-600 text-xs font-black">
-                        <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">✓</span>
-                        ElevenLabs key saved
-                      </div>
-                      <button
-                        onClick={async () => {
-                          const { ELEVEN_VOICES, DEFAULT_ELEVEN_VOICE } = await import("../lib/groq");
-                          const voiceId = (data.settings as any).elevenLabsVoiceId || DEFAULT_ELEVEN_VOICE;
-                          const voice = ELEVEN_VOICES.find(v => v.id === voiceId);
-                          const key = (data.settings as any).elevenLabsKey;
-                          try {
-                            const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json", "xi-api-key": key, "Accept": "audio/mpeg" },
-                              body: JSON.stringify({ text: `Hi! I am ${voice?.name || "your AI voice"}. ElevenLabs is working perfectly.`, model_id: "eleven_turbo_v2_5", voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
-                            });
-                            if (!res.ok) { alert(`❌ ElevenLabs error ${res.status}: ${await res.text()}`); return; }
-                            const buf = await res.arrayBuffer();
-                            const audio = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" })));
-                            audio.play();
-                            alert("✅ ElevenLabs working! You should hear the voice.");
-                          } catch(e: any) { alert(`❌ Failed: ${e.message}\n\nMake sure Brave Shields are OFF for this site.`); }
-                        }}
-                        className="w-full py-3 bg-violet-500 hover:bg-violet-600 text-white font-black rounded-2xl text-sm transition-all"
-                      >
-                        🎙 Test Voice Now
-                      </button>
-                    </div>
-                  : <p className="text-xs text-gray-400 font-medium">Without key → uses Groq TTS or browser voice as backup</p>
-                }
-              </div>
-
             </div>
           )}
 

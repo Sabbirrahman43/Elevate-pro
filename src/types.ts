@@ -33,7 +33,7 @@ export interface AIModel {
   color: string;
 }
 
-export type AIPersonaType = "Coach" | "Teacher" | "Trainer" | "Partner" | "Friend" | "Wife" | "Girlfriend";
+export type AIPersonaType = "Coach" | "Teacher" | "Trainer" | "Partner" | "Friend" | "Mentor" | "Therapist";
 
 export interface AISettings {
   identity: {
@@ -56,27 +56,11 @@ export interface UserProfile {
   avatar?: string;
 }
 
-export interface Flashcard {
-  id: string;
-  front: string;
-  back: string;
-  topic: string;
-  createdAt: number;
-  nextReview?: number;
-}
-
-export type AIMode = "Chat" | "Research" | "Support" | "Planner" | "Learner";
-
 export interface WorkspaceData {
   tasks: Task[];
   habits: Habit[];
   notes: Note[];
-  messages: ChatMessage[];           // Chat mode messages (default)
-  researchMessages: ChatMessage[];   // Research mode
-  supportMessages: ChatMessage[];    // Support mode
-  plannerMessages: ChatMessage[];    // Planner mode
-  learnerMessages: ChatMessage[];    // Learner mode
-  flashcards: Flashcard[];           // AI-created flashcards
+  messages: ChatMessage[];
   offDays: string[];
   settings: {
     geminiKey: string;
